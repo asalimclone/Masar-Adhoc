@@ -787,7 +787,7 @@ async function loadStores(repCode){
   return [];
 }
 /* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
-const ACTION_LOG_ENDPOINT = ''; // هيتحط هنا رابط الـ Web App بتاع Google Apps Script أول ما توصلني بيه
+const ACTION_LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbybhTXtelMWgDaj4W_zhezDFO_XkNB5e5ny6GOiie2ptpXEvgVcbpoRk3LPdV7swcJJ/exec'; // رابط Google Apps Script Web App
 
 function logAction(actionType, storeCode, storeName, details, store){
   if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
