@@ -786,6 +786,31 @@ async function loadStores(repCode){
   }
   return [];
 }
+/* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
+const ACTION_LOG_ENDPOINT = ''; // هيتحط هنا رابط الـ Web App بتاع Google Apps Script أول ما توصلني بيه
+
+function logAction(actionType, storeCode, storeName, details, store){
+  if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
+  try{
+    const payload = {
+      repCode: state.repCode,
+      actionType,
+      storeCode: storeCode!=null ? String(storeCode) : '',
+      storeName: storeName || '',
+      details: details || '',
+    };
+    if(store){
+      payload.snapshotHeaders = getExportColumns();
+      payload.snapshotRow = buildStoreExportRow(store, state.repCode);
+    }
+    fetch(ACTION_LOG_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'}, // كده عشان نتفادى مشكلة CORS preflight مع Google Apps Script
+      body: JSON.stringify(payload),
+    }).catch(()=>{}); // فشل التسجيل مايوقفش شغل المندوب أبدًا، بس تسجيل خلفي صامت
+  }catch(e){ /* تجاهل، التسجيل مش لازم يعطل حاجة */ }
+}
+
 async function saveStores(){
   try{
     await window.storage.set('stores:'+state.repCode, JSON.stringify(state.stores), true);
@@ -1496,6 +1521,8 @@ window.assignZone = function(storeId, zoneId){
   renderMarkers();
   map.closePopup();
   showToast('اتحدد زون المحل');
+  const zoneName = zoneId ? (state.zones.find(z=>z.id===zoneId)||{}).name : 'بدون زون';
+  logAction('تغيير زون', store.code, store.name, `الزون: ${zoneName||''}`, store);
 };
 
 window.changeStoreDay = function(storeId, newDay){
@@ -1510,6 +1537,7 @@ window.changeStoreDay = function(storeId, newDay){
   renderMarkers();
   map.closePopup();
   showToast(`اتنقل المحل ليوم ${DAYS[newDayIdx].ar}`);
+  logAction('نقل يوم فردي', store.code, store.name, `من ${DAYS[oldDayIdx].ar} إلى ${DAYS[newDayIdx].ar}`, store);
 };
 
 function escapeHtml(s){
@@ -1940,18 +1968,22 @@ document.getElementById('btn-draw-selected-routes').addEventListener('click', ()
 window.renameZone = function(zoneId, newName){
   const z = state.zones.find(z=>z.id===zoneId);
   if(!z || !newName.trim()) return;
+  const oldName = z.name;
   z.name = newName.trim();
   saveZones();
   renderMarkers();
+  logAction('تعديل اسم زون', '', '', `من "${oldName}" إلى "${z.name}"`);
 };
 window.deleteZone = function(zoneId){
   if(!confirm('حذف الزون ده؟ المحلات جواه هترجع من غير زون.')) return;
+  const z = state.zones.find(z=>z.id===zoneId);
   state.zones = state.zones.filter(z=>z.id!==zoneId);
   state.stores.forEach(s=>{ if(s.zoneId===zoneId) s.zoneId = null; });
   selectedRouteZones.delete(zoneId);
   saveStores(); saveZones();
   renderMarkers();
   renderZonesList();
+  logAction('حذف زون', '', '', z ? z.name : zoneId);
 };
 
 document.getElementById('btn-zones').addEventListener('click', ()=>{
@@ -2003,6 +2035,7 @@ window.changeStatus = function(storeId, newStatus){
   const store = state.stores.find(s=>s.id===storeId);
   if(!store) return;
   const wasValid = store.status === 'valid';
+  const oldStatusLabel = STATUS[store.status] ? STATUS[store.status].label : store.status;
   store.status = newStatus;
   if(newStatus !== 'valid'){
     store.assignment = null;
@@ -2010,6 +2043,7 @@ window.changeStatus = function(storeId, newStatus){
   saveStores();
   renderMarkers();
   map.closePopup();
+  logAction('تغيير الحالة', store.code, store.name, `من ${oldStatusLabel} إلى ${STATUS[newStatus].label}`, store);
   if(newStatus !== 'valid' && wasValid){
     setTimeout(()=>{
       if(confirm('اتسجلت الحالة. عايز تضيف محل بديل مكانه دلوقتي؟')){
@@ -2053,6 +2087,7 @@ window.removeFromRoute = function(storeId){
   saveStores();
   renderMarkers();
   map.closePopup();
+  logAction('إزالة من خط السير', store.code, store.name, removalNote, store);
 };
 
 /* ===================== Store notes ===================== */
@@ -2101,6 +2136,7 @@ window.confirmRenameStore = function(storeId){
   renderMarkers();
   map.closePopup();
   showToast('اتغير اسم المحل');
+  logAction('تعديل اسم المحل', store.code, newName, `من "${oldName}" إلى "${newName}"`, store);
 };
 
 /* ===================== Assign modal ===================== */
@@ -2197,6 +2233,7 @@ document.getElementById('assign-save').addEventListener('click', ()=>{
   } else {
     showToast(`اتسكن المحل في خط السير — ${monthlyCapMessage(projectedTotal)}`);
   }
+  logAction('تسكين/تعديل خط السير', store.code, store.name, assignmentSummary(newAssignment), store);
 });
 
 /* ===================== Swap Days modal ===================== */
@@ -2251,6 +2288,7 @@ document.getElementById('swap-days-confirm').addEventListener('click', ()=>{
   renderMarkers();
   overlaySwapDays.classList.remove('show');
   showToast(`تم تبديل يوم ${DAYS[dayA].ar} (${countA} عميل) مع يوم ${DAYS[dayB].ar} (${countB} عميل) — إجمالي ${swapped} محل اتنقل.`);
+  logAction('تبديل يومين بالكامل', '', '', `${DAYS[dayA].ar} (${countA} عميل) ↔ ${DAYS[dayB].ar} (${countB} عميل) — ${swapped} محل`);
 });
 
 /* ===================== Add / Replace store modal ===================== */
@@ -2470,6 +2508,7 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   saveStores();
   renderMarkers();
   overlayStore.classList.remove('show');
+  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore);
 
   if(assignment.suspended){
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
@@ -2704,52 +2743,59 @@ document.getElementById('master-file-input').addEventListener('change', async (e
 });
 
 /* ===================== Export Excel ===================== */
-document.getElementById('btn-export').addEventListener('click', ()=>{
+function getExportColumns(){
   const cols = ['Adhoc Serial','Outlet Name Conc','New Repzo User'];
   for(let w=1; w<=4; w++) DAYS.forEach(d=> cols.push(`${d.key} ${w}`));
   cols.push('Freq','Weekly Visit','حالة المحل','جديد/قديم','النوع','السلسلة','Lat','Lng','ملاحظات','نقل يوم فردي','تبديل يومين','تعديل اسم المحل');
-
-  const rows = [cols];
-  state.stores.forEach(store=>{
-    const row = [store.code, `${store.name} - ${store.code}`, state.repCode];
-    const a = store.assignment;
-    for(let w=1; w<=4; w++){
-      DAYS.forEach((d,dayIdx)=>{
-        let on = 0;
-        if(a && !a.suspended){
-          const dayMatches = a.days.includes(dayIdx);
-          if(dayMatches){
-            if(a.freq==='weekly') on = 1;
-            else if(a.freq==='biweekly'){
-              if(a.weekGroup==='13' && (w===1||w===3)) on = 1;
-              if(a.weekGroup==='24' && (w===2||w===4)) on = 1;
-            }
+  return cols;
+}
+function buildStoreExportRow(store, repCode){
+  const row = [store.code, `${store.name} - ${store.code}`, repCode];
+  const a = store.assignment;
+  for(let w=1; w<=4; w++){
+    DAYS.forEach((d,dayIdx)=>{
+      let on = 0;
+      if(a && !a.suspended){
+        const dayMatches = a.days.includes(dayIdx);
+        if(dayMatches){
+          if(a.freq==='weekly') on = 1;
+          else if(a.freq==='biweekly'){
+            if(a.weekGroup==='13' && (w===1||w===3)) on = 1;
+            if(a.weekGroup==='24' && (w===2||w===4)) on = 1;
           }
         }
-        row.push(on);
-      });
-    }
-    if(a && a.suspended){
-      row.push('Suspended');
-      row.push('Suspended');
-    } else if(a){
-      row.push(a.freq==='weekly' ? 'Weekly' : 'Bi-Weekly');
-      row.push(a.freq==='weekly' ? 'Weekly' : (a.weekGroup==='13' ? 'WK1 - WK03' : 'WK02 - WK04'));
-    } else {
-      row.push('Bi-Weekly');
-      row.push('WK1 - WK03');
-    }
-    row.push(STATUS[store.status].label);
-    row.push(store.origin==='old' ? 'قديم' : 'جديد');
-    row.push(store.storeType || '');
-    row.push(store.gasStationChain || '');
-    row.push(store.lat!=null ? store.lat : '');
-    row.push(store.lng!=null ? store.lng : '');
-    row.push(store.notes || '');
-    row.push(store.dayMoveNote || '');
-    row.push(store.daySwapNote || '');
-    row.push(store.nameChangeNote || '');
-    rows.push(row);
+      }
+      row.push(on);
+    });
+  }
+  if(a && a.suspended){
+    row.push('Suspended');
+    row.push('Suspended');
+  } else if(a){
+    row.push(a.freq==='weekly' ? 'Weekly' : 'Bi-Weekly');
+    row.push(a.freq==='weekly' ? 'Weekly' : (a.weekGroup==='13' ? 'WK1 - WK03' : 'WK02 - WK04'));
+  } else {
+    row.push('Bi-Weekly');
+    row.push('WK1 - WK03');
+  }
+  row.push(STATUS[store.status].label);
+  row.push(store.origin==='old' ? 'قديم' : 'جديد');
+  row.push(store.storeType || '');
+  row.push(store.gasStationChain || '');
+  row.push(store.lat!=null ? store.lat : '');
+  row.push(store.lng!=null ? store.lng : '');
+  row.push(store.notes || '');
+  row.push(store.dayMoveNote || '');
+  row.push(store.daySwapNote || '');
+  row.push(store.nameChangeNote || '');
+  return row;
+}
+
+document.getElementById('btn-export').addEventListener('click', ()=>{
+  const cols = getExportColumns();
+  const rows = [cols];
+  state.stores.forEach(store=>{
+    rows.push(buildStoreExportRow(store, state.repCode));
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
