@@ -505,6 +505,47 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     </div>
     <button class="map-pick-btn" id="btn-pick-loc">📍 دوس هنا وبعدين دوس على الخريطة لتحديد الموقع</button>
 
+    <hr style="border:none;border-top:1.5px solid var(--line);margin:16px 0;">
+
+    <div class="field">
+      <label>صورة واجهة المحل من الخارج (إجباري)</label>
+      <input type="file" accept="image/*" capture="environment" id="store-photo1" style="width:100%;">
+      <img id="store-photo1-preview" style="display:none;max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;object-fit:cover;">
+    </div>
+    <div class="field">
+      <label>صورة إضافية للمحل (اختياري)</label>
+      <input type="file" accept="image/*" capture="environment" id="store-photo2" style="width:100%;">
+      <img id="store-photo2-preview" style="display:none;max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;object-fit:cover;">
+    </div>
+    <div class="field">
+      <label>محل قوي؟</label>
+      <select id="store-strong" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
+        <option value="">اختار...</option>
+        <option value="نعم">نعم</option>
+        <option value="لا">لا</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>تواجد ثلاجة جهينة؟</label>
+      <select id="store-jhina-fridge" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
+        <option value="">اختار...</option>
+        <option value="نعم">نعم</option>
+        <option value="لا">لا</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>تواجد منتجات مشروبات الطاقة؟</label>
+      <select id="store-energy-drinks" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
+        <option value="">اختار...</option>
+        <option value="نعم">نعم</option>
+        <option value="لا">لا</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>سبب الإضافة / ملاحظات أخرى</label>
+      <textarea id="store-add-reason" rows="2" placeholder="اكتب سبب إضافة المحل..." style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);resize:vertical;"></textarea>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-ghost" id="store-cancel">إلغاء</button>
       <button class="btn-solid" id="store-save">حفظ المحل</button>
@@ -797,7 +838,7 @@ async function loadStores(repCode){
 /* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
 const ACTION_LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzbQUE-XXmIslXt7lzwxRMOJFCuK73mMUV1WjaAhOFJNmG-d95j2FvZHc8XliO1W01Tpw/exec';
 
-function logAction(actionType, storeCode, storeName, details, store){
+function logAction(actionType, storeCode, storeName, details, store, newStoreDetails){
   if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
   try{
     const payload = {
@@ -811,12 +852,59 @@ function logAction(actionType, storeCode, storeName, details, store){
       payload.snapshotHeaders = getExportColumns();
       payload.snapshotRow = buildStoreExportRow(store, state.repCode);
     }
+    if(newStoreDetails){
+      payload.newStoreDetails = newStoreDetails;
+    }
     fetch(ACTION_LOG_ENDPOINT, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain;charset=utf-8'}, // كده عشان نتفادى مشكلة CORS preflight مع Google Apps Script
       body: JSON.stringify(payload),
     }).catch(()=>{}); // فشل التسجيل مايوقفش شغل المندوب أبدًا، بس تسجيل خلفي صامت
   }catch(e){ /* تجاهل، التسجيل مش لازم يعطل حاجة */ }
+}
+
+/* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script ---------- */
+function resizeImageToBase64(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('فشل قراءة الصورة'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('فشل تحميل الصورة'));
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality || 0.7);
+        resolve(dataUrl.split(',')[1]); // نرجع الـ base64 بس من غير الـ prefix
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadStorePhoto(file, fileNamePrefix){
+  if(!file) return '';
+  const base64 = await resizeImageToBase64(file, 1280, 0.7);
+  const res = await fetch(ACTION_LOG_ENDPOINT, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      kind: 'uploadImage',
+      imageBase64: base64,
+      mimeType: 'image/jpeg',
+      fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.jpg',
+    }),
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'فشل رفع الصورة');
+  return data.url;
 }
 
 async function saveStores(){
@@ -2408,6 +2496,15 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
   document.getElementById('store-lat').value = lat!=null ? lat.toFixed(6) : '';
   document.getElementById('store-lng').value = lng!=null ? lng.toFixed(6) : '';
 
+  document.getElementById('store-photo1').value = '';
+  document.getElementById('store-photo2').value = '';
+  document.getElementById('store-photo1-preview').style.display = 'none';
+  document.getElementById('store-photo2-preview').style.display = 'none';
+  document.getElementById('store-strong').value = '';
+  document.getElementById('store-jhina-fridge').value = '';
+  document.getElementById('store-energy-drinks').value = '';
+  document.getElementById('store-add-reason').value = '';
+
   document.getElementById('store-lat').readOnly = !state.isAdmin;
   document.getElementById('store-lng').readOnly = !state.isAdmin;
   document.getElementById('btn-pick-loc').style.display = state.isAdmin ? 'block' : 'none';
@@ -2422,6 +2519,18 @@ document.getElementById('store-cancel').addEventListener('click', ()=>{
   overlayStore.classList.remove('show');
   state.pickingForStoreModal = false;
 });
+function wireStorePhotoPreview(inputId, previewId){
+  document.getElementById(inputId).addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    const preview = document.getElementById(previewId);
+    if(!file){ preview.style.display='none'; return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{ preview.src = reader.result; preview.style.display='block'; };
+    reader.readAsDataURL(file);
+  });
+}
+wireStorePhotoPreview('store-photo1','store-photo1-preview');
+wireStorePhotoPreview('store-photo2','store-photo2-preview');
 document.getElementById('btn-pick-loc').addEventListener('click', ()=>{
   state.pickingForStoreModal = true;
   const btn = document.getElementById('btn-pick-loc');
@@ -2440,6 +2549,22 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   }
   if(!type){
     showToast('اختار نوع المحل الأول عشان نظام الزيارة يتحدد صح');
+    return;
+  }
+
+  const photo1File = document.getElementById('store-photo1').files[0];
+  const photo2File = document.getElementById('store-photo2').files[0];
+  const strongStore = document.getElementById('store-strong').value;
+  const jhinaFridge = document.getElementById('store-jhina-fridge').value;
+  const energyDrinks = document.getElementById('store-energy-drinks').value;
+  const addReason = document.getElementById('store-add-reason').value.trim();
+
+  if(!photo1File){
+    showToast('لازم ترفع صورة واضحة لواجهة المحل من الخارج');
+    return;
+  }
+  if(!strongStore || !jhinaFridge || !energyDrinks){
+    showToast('جاوب على أسئلة (محل قوي / ثلاجة جهينة / مشروبات الطاقة) الأول');
     return;
   }
 
@@ -2507,16 +2632,39 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   const projectedTotal = otherVisits + newVisits;
   assignment.suspended = projectedTotal > MONTHLY_VISIT_MAX;
 
+  const saveBtn = document.getElementById('store-save');
+  saveBtn.disabled = true;
+  const originalBtnText = saveBtn.textContent;
+  saveBtn.textContent = 'بيرفع الصور...';
+  let photo1Url = '', photo2Url = '';
+  try{
+    photo1Url = await uploadStorePhoto(photo1File, code + '_1');
+    if(photo2File) photo2Url = await uploadStorePhoto(photo2File, code + '_2');
+  }catch(err){
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalBtnText;
+    showToast('حصلت مشكلة في رفع الصور، جرب تاني (اتأكد من النت)');
+    return;
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = originalBtnText;
+
+  const newStoreDetails = {
+    strongStore, jhinaFridge, energyDrinks, addReason,
+    photo1Url, photo2Url,
+  };
+
   const newStore = {
     id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     name, code, lat, lng, status:'valid', storeType: type, gasStationChain: chain || undefined,
     assignment, zoneId: matchedZoneId, origin:'new',
+    strongStore, jhinaFridge, energyDrinks, addReason, photo1Url, photo2Url,
   };
   state.stores.push(newStore);
   saveStores();
   renderMarkers();
   overlayStore.classList.remove('show');
-  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore);
+  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore, newStoreDetails);
 
   if(assignment.suspended){
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
