@@ -838,6 +838,30 @@ async function loadStores(repCode){
 /* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
 const ACTION_LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzbQUE-XXmIslXt7lzwxRMOJFCuK73mMUV1WjaAhOFJNmG-d95j2FvZHc8XliO1W01Tpw/exec';
 
+/* ---------- تنبيهات: محاولات مشبوهة تتبعت للأدمن دايمًا (حتى لو state.readOnly) ---------- */
+function logAlert(type, details, storeCode, storeName){
+  if(!ACTION_LOG_ENDPOINT) return;
+  try{
+    const payload = {
+      repCode: state.repCode,
+      actionType: '⚠️ تنبيه',
+      storeCode: storeCode!=null ? String(storeCode) : '',
+      storeName: storeName || '',
+      details: '',
+      alert: { type, details: details || '' },
+    };
+    fetch(ACTION_LOG_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload),
+    }).catch(()=>{});
+  }catch(e){ /* تجاهل */ }
+}
+function todayDaysIndex(){
+  // DAYS[0] = السبت، وده بيتماشى مع getDay() من جافاسكريبت (0=الأحد...6=السبت)
+  return (new Date().getDay() + 1) % 7;
+}
+
 function logAction(actionType, storeCode, storeName, details, store, newStoreDetails){
   if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
   try{
@@ -978,6 +1002,16 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   } else {
     state.isAdmin = false;
     state.repCode = user;
+
+    // تنبيه: لو الجهاز ده كان متسجل عليه مندوب مختلف قبل كده
+    try{
+      const DEVICE_KEY = 'masar_last_device_rep';
+      const lastRepOnDevice = localStorage.getItem(DEVICE_KEY);
+      if(lastRepOnDevice && lastRepOnDevice !== user){
+        logAlert('دخول بحساب مختلف عن جهاز معروف', `الجهاز ده كان آخر مرة اتسجل عليه بحساب "${lastRepOnDevice}"، ودلوقتي بيدخل بحساب "${user}"`);
+      }
+      localStorage.setItem(DEVICE_KEY, user);
+    }catch(e){ /* تجاهل */ }
   }
   state.readOnly = (state.repCode === 'ALL');
 
@@ -1941,10 +1975,12 @@ document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
     // المندوب لازم يحدد موقعه الفعلي الأول، والإضافة بتتم بالظبط في مكانه (مش دوس على الخريطة)
     if(!myLocation){
       showToast('لازم تدوس "موقعي" الأول عشان نحدد مكانك بالظبط، وبعدين تقدر تضيف المحل');
+      logAlert('محاولة إضافة من غير لوكيشن', 'المندوب حاول يضيف محل من غير ما يحدد موقعه أصلاً');
       return;
     }
     if(myLocation.approximate){
       showToast('⚠️ موقعك الحالي تقريبي (مش GPS حقيقي) ومينفعش يتاخد بيه محل. فعّل خدمة الموقع وجرب "موقعي" تاني.', true);
+      logAlert('محاولة إضافة بلوكيشن تقريبي', 'الموقع كان تقريبي (IP) مش GPS حقيقي');
       return;
     }
     const btn = document.getElementById('btn-add-mode');
@@ -1956,6 +1992,7 @@ document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
     btn.innerHTML = originalHTML;
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
+      logAlert('محاولة إضافة برا الزون', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict));
       return;
     }
     openStoreModal({mode:'add', lat: myLocation.lat, lng: myLocation.lng});
@@ -2155,16 +2192,19 @@ window.openReplaceFlow = async function(storeId){
   if(!state.isAdmin){
     if(!myLocation){
       showToast('لازم تدوس "موقعي" الأول عشان نحدد مكانك بالظبط، وبعدين تقدر تضيف المحل البديل');
+      logAlert('محاولة إضافة من غير لوكيشن', 'المندوب حاول يضيف محل بديل من غير ما يحدد موقعه', store ? store.code : '', store ? store.name : '');
       return;
     }
     if(myLocation.approximate){
       showToast('⚠️ موقعك الحالي تقريبي (مش GPS حقيقي) ومينفعش يتاخد بيه محل. فعّل خدمة الموقع وجرب "موقعي" تاني.', true);
+      logAlert('محاولة إضافة بلوكيشن تقريبي', 'الموقع كان تقريبي (IP) مش GPS حقيقي', store ? store.code : '', store ? store.name : '');
       return;
     }
     showToast('بيتأكد من النطاق...');
     const conflict = await checkTerritoryConflict(state.repCode, myLocation.lat, myLocation.lng);
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
+      logAlert('محاولة إضافة برا الزون', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict), store ? store.code : '', store ? store.name : '');
       return;
     }
     openStoreModal({mode:'replace', lat: myLocation.lat, lng: myLocation.lng, replacingFor:storeId});
@@ -2619,8 +2659,10 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     if(conflict){
       if(conflict.type === 'outside_all'){
         showToast('⛔ انت خارج جميع مناطق الإضافة، برجاء إجراء الإضافة داخل النطاق الخاص بك', true);
+        logAlert('محاولة إضافة برا الزون', 'برا كل مناطق الإضافة الخاصة بيه', code, name);
       } else {
         showToast(territoryConflictMessage(conflict), true);
+        logAlert('محاولة إضافة برا الزون', territoryConflictMessage(conflict), code, name);
       }
       return;
     }
@@ -2631,6 +2673,10 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   const otherVisits = totalMonthlyVisits(null);
   const projectedTotal = otherVisits + newVisits;
   assignment.suspended = projectedTotal > MONTHLY_VISIT_MAX;
+
+  if(!state.isAdmin && assignment.days[0] !== todayDaysIndex()){
+    logAlert('إضافة في يوم غير يوم الخط', `يوم الخط المحسوب: ${DAYS[assignment.days[0]].ar} — النهارده: ${DAYS[todayDaysIndex()].ar}`, code, name);
+  }
 
   const saveBtn = document.getElementById('store-save');
   saveBtn.disabled = true;
