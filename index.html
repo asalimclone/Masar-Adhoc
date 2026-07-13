@@ -913,7 +913,7 @@ function resizeImageToBase64(file, maxDim, quality){
   });
 }
 
-async function uploadStorePhoto(file, fileNamePrefix){
+async function uploadStorePhoto(file, fileNamePrefix, storeCode){
   if(!file) return '';
   const base64 = await resizeImageToBase64(file, 1280, 0.7);
   const res = await fetch(ACTION_LOG_ENDPOINT, {
@@ -924,6 +924,7 @@ async function uploadStorePhoto(file, fileNamePrefix){
       imageBase64: base64,
       mimeType: 'image/jpeg',
       fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.jpg',
+      storeCode: storeCode || '',
     }),
   });
   const data = await res.json();
@@ -2684,8 +2685,8 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   saveBtn.textContent = 'بيرفع الصور...';
   let photo1Url = '', photo2Url = '';
   try{
-    photo1Url = await uploadStorePhoto(photo1File, code + '_1');
-    if(photo2File) photo2Url = await uploadStorePhoto(photo2File, code + '_2');
+    photo1Url = await uploadStorePhoto(photo1File, code + '_1', code);
+    if(photo2File) photo2Url = await uploadStorePhoto(photo2File, code + '_2', code);
   }catch(err){
     saveBtn.disabled = false;
     saveBtn.textContent = originalBtnText;
@@ -2896,6 +2897,7 @@ document.getElementById('master-file-input').addEventListener('change', async (e
 
   const repCodes = Object.keys(byRep);
   let done = 0;
+  let totalRemoved = 0;
   for(const rep of repCodes){
     progress.textContent = `بتحدث ${rep}... (${done+1} من ${repCodes.length})`;
     try{
@@ -2908,26 +2910,39 @@ document.getElementById('master-file-input').addEventListener('change', async (e
       }catch(bErr){ console.error('backup failed for', rep, bErr); }
 
       const byCode = new Map(existing.map(s=>[String(s.code), s]));
+      let removedCount = 0;
       byRep[rep].forEach(inc=>{
         const key = String(inc.code);
         if(byCode.has(key)){
           const ex = byCode.get(key);
+          if(inc.assignment === null){
+            // الشيت الرئيسي الجديد بيقول صفر أيام زيارة للمحل ده = اتشال فعليًا، نشيله من الخريطة دلوقتي
+            const pos = existing.indexOf(ex);
+            if(pos !== -1) existing.splice(pos, 1);
+            byCode.delete(key);
+            removedCount++;
+            return;
+          }
           ex.name = inc.name; ex.lat = inc.lat; ex.lng = inc.lng;
           ex.status = 'valid'; ex.assignment = inc.assignment; ex.origin = 'old';
           if(inc.storeType) ex.storeType = inc.storeType;
         } else {
+          if(inc.assignment === null) return; // متتضافش من الأول محلات من غير أيام زيارة
           existing.push(inc);
           byCode.set(key, inc);
         }
       });
       await window.storage.set('stores:'+rep, JSON.stringify(existing), true);
+      totalRemoved += removedCount;
     }catch(err){
       console.error('failed updating', rep, err);
     }
     done++;
   }
 
-  progress.textContent = `تم التحديث لـ ${repCodes.length} مندوب بنجاح ✓` + (outOfBoundsCount>0 ? ` — تنبيه: ${outOfBoundsCount} محل بإحداثيات غريبة برا حدود مصر تقريبًا، راجعهم.` : '');
+  progress.textContent = `تم التحديث لـ ${repCodes.length} مندوب بنجاح ✓` +
+    (totalRemoved>0 ? ` — اتشال ${totalRemoved} محل من الخريطة (كان صفر أيام زيارة في الشيت الجديد).` : '') +
+    (outOfBoundsCount>0 ? ` تنبيه: ${outOfBoundsCount} محل بإحداثيات غريبة برا حدود مصر تقريبًا، راجعهم.` : '');
   doneActions.style.display = 'flex';
 
   if(state.readOnly){
