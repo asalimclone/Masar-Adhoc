@@ -983,8 +983,10 @@ const SURVEY_QUESTION_TYPES = [
   {key:'select', label:'قائمة اختيار واحد'},
   {key:'multiselect', label:'قائمة اختيار أكتر من واحد'},
   {key:'date', label:'تاريخ'},
-  {key:'photo', label:'صورة'},
+  {key:'photo', label:'صورة واحدة'},
+  {key:'multiphoto', label:'صور متعددة (بعدد حر)'},
 ];
+const BUILT_IN_ADD_STORE_SURVEY_ID = 'built_in_add_store';
 
 async function loadSurveysFromServer(){
   if(!ACTION_LOG_ENDPOINT) return;
@@ -1011,18 +1013,21 @@ function renderSurveysAdminList(){
     box.innerHTML = '<p class="hint">لسه مفيش استبيانات. دوس "+ استبيان جديد" عشان تعمل أول واحد.</p>';
     return;
   }
-  box.innerHTML = state.surveys.map(sv => `
+  box.innerHTML = state.surveys.map(sv => {
+    const isBuiltIn = sv.id === BUILT_IN_ADD_STORE_SURVEY_ID;
+    return `
     <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <div style="font-weight:700;">${escapeHtml(sv.name||'(من غير اسم)')}</div>
-        <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال</div>
+        <div style="font-weight:700;">${isBuiltIn ? '🔒 ' : ''}${escapeHtml(sv.name||'(من غير اسم)')}</div>
+        <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال${isBuiltIn ? ' — استبيان مدمج، بيتعبى تلقائي مع كل إضافة محل جديد' : ''}</div>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="openSurveyBuilder('${sv.id}')">تعديل</button>
-        <button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>
+        ${isBuiltIn ? '' : `<button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>`}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 document.getElementById('btn-new-survey').addEventListener('click', ()=>{
   openSurveyBuilder(null);
@@ -1227,7 +1232,9 @@ document.getElementById('survey-pick-close').addEventListener('click', ()=>{
 let currentFillSurvey = null;
 let currentFillAnswers = {};
 let currentFillPhotoFiles = {};
-let currentFillExistingPhotoUrls = {}; // qId -> رابط الصورة من رد سابق، بتفضل سارية إلا لو المندوب اختار صورة جديدة
+let currentFillExistingPhotoUrls = {}; // qId -> رابط الصورة من رد سابق (نوع "صورة واحدة")، بتفضل سارية إلا لو المندوب اختار صورة جديدة
+let currentFillMultiPhotoNewFiles = {}; // qId -> array من الملفات الجديدة (نوع "صور متعددة")
+let currentFillMultiPhotoExisting = {}; // qId -> array من روابط الصور القديمة (نوع "صور متعددة")، كل واحدة تقدر تتشال لوحدها
 
 window.openSurveyFillForm = async function(surveyId){
   const survey = state.surveys.find(s=>s.id===surveyId);
@@ -1236,6 +1243,8 @@ window.openSurveyFillForm = async function(surveyId){
   currentFillAnswers = {};
   currentFillPhotoFiles = {};
   currentFillExistingPhotoUrls = {};
+  currentFillMultiPhotoNewFiles = {};
+  currentFillMultiPhotoExisting = {};
   document.getElementById('overlay-survey-list').classList.remove('show');
   document.getElementById('survey-fill-title').textContent = survey.name;
   document.getElementById('survey-fill-body').innerHTML = '<p class="hint">بيتحمل...</p>';
@@ -1250,6 +1259,7 @@ window.openSurveyFillForm = async function(surveyId){
         currentFillAnswers = data.response.answers || {};
         (survey.questions||[]).forEach(q=>{
           if(q.type==='photo' && currentFillAnswers[q.id]) currentFillExistingPhotoUrls[q.id] = currentFillAnswers[q.id];
+          if(q.type==='multiphoto') currentFillMultiPhotoExisting[q.id] = Array.isArray(currentFillAnswers[q.id]) ? currentFillAnswers[q.id].slice() : [];
         });
         showToast('اتحملت آخر إجابات اتسجلت للمحل ده، وتقدر تعدلها');
       }
@@ -1309,6 +1319,26 @@ function renderSurveyFillForm(){
         <input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" onchange="setSurveyPhotoFile('${q.id}', this.files[0])">
         ${existingUrl ? `<p class="hint">في صورة متسجلة قبل كده — <a href="${existingUrl}" target="_blank">دوس هنا تشوفها</a>. اختار صورة جديدة بس لو عايز تستبدلها.</p>` : ''}
         <img id="survey-photo-preview-${q.id}" style="display:none;max-width:100%;max-height:140px;border-radius:10px;margin-top:8px;object-fit:cover;">`;
+    } else if(q.type==='multiphoto'){
+      const existingUrls = currentFillMultiPhotoExisting[q.id] || [];
+      const newFiles = currentFillMultiPhotoNewFiles[q.id] || [];
+      const thumbs = existingUrls.map((url, i)=>`
+        <div style="position:relative;width:74px;height:74px;">
+          <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+          <button type="button" onclick="removeSurveyMultiPhotoExisting('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
+        </div>`).join('') + newFiles.map((file, i)=>`
+        <div style="position:relative;width:74px;height:74px;">
+          <img src="${URL.createObjectURL(file)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+          <button type="button" onclick="removeSurveyMultiPhotoNew('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
+        </div>`).join('');
+      inputHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-mphoto-camera-${q.id}').click()">📷 افتح الكاميرا</button>
+          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-mphoto-gallery-${q.id}').click()">⬆️ رفع الصور</button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="survey-mphoto-camera-${q.id}" style="display:none;" onchange="addSurveyMultiPhoto('${q.id}', this.files)">
+        <input type="file" accept="image/*" id="survey-mphoto-gallery-${q.id}" style="display:none;" multiple onchange="addSurveyMultiPhoto('${q.id}', this.files)">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">${thumbs}</div>`;
     }
     return `
       <div class="field">
@@ -1343,6 +1373,19 @@ window.setSurveyPhotoFile = function(qId, file){
   };
   reader.readAsDataURL(file);
 };
+window.addSurveyMultiPhoto = function(qId, fileList){
+  if(!currentFillMultiPhotoNewFiles[qId]) currentFillMultiPhotoNewFiles[qId] = [];
+  Array.from(fileList).forEach(f=>currentFillMultiPhotoNewFiles[qId].push(f));
+  renderSurveyFillForm();
+};
+window.removeSurveyMultiPhotoNew = function(qId, idx){
+  if(currentFillMultiPhotoNewFiles[qId]) currentFillMultiPhotoNewFiles[qId].splice(idx,1);
+  renderSurveyFillForm();
+};
+window.removeSurveyMultiPhotoExisting = function(qId, idx){
+  if(currentFillMultiPhotoExisting[qId]) currentFillMultiPhotoExisting[qId].splice(idx,1);
+  renderSurveyFillForm();
+};
 
 document.getElementById('survey-fill-cancel').addEventListener('click', ()=>{
   document.getElementById('overlay-survey-fill').classList.remove('show');
@@ -1356,6 +1399,9 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
     if(!q.required) continue;
     if(q.type==='photo'){
       if(!currentFillPhotoFiles[q.id] && !currentFillExistingPhotoUrls[q.id]){ showToast(`لازم ترفع صورة للسؤال: ${q.text}`); return; }
+    } else if(q.type==='multiphoto'){
+      const total = (currentFillMultiPhotoExisting[q.id]||[]).length + (currentFillMultiPhotoNewFiles[q.id]||[]).length;
+      if(total===0){ showToast(`لازم صورة واحدة على الأقل للسؤال: ${q.text}`); return; }
     } else if(q.type==='multiselect'){
       if(!Array.isArray(currentFillAnswers[q.id]) || currentFillAnswers[q.id].length===0){ showToast(`جاوب على: ${q.text}`); return; }
     } else {
@@ -1371,13 +1417,23 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
 
   try{
     for(const q of qs){
-      if(q.type==='photo' && isSurveyQuestionVisible(q)){
+      if(!isSurveyQuestionVisible(q)) continue;
+      if(q.type==='photo'){
         if(currentFillPhotoFiles[q.id]){
           const url = await uploadStorePhoto(currentFillPhotoFiles[q.id], (store?store.code:'survey')+'_'+q.id, store?store.code:'');
           currentFillAnswers[q.id] = url;
         } else if(currentFillExistingPhotoUrls[q.id]){
           currentFillAnswers[q.id] = currentFillExistingPhotoUrls[q.id]; // محافظين على الصورة القديمة لو مافيش صورة جديدة
         }
+      } else if(q.type==='multiphoto'){
+        const newFiles = currentFillMultiPhotoNewFiles[q.id] || [];
+        const uploadedUrls = [];
+        for(let i=0;i<newFiles.length;i++){
+          btn.textContent = `بيرفع صورة ${i+1} من ${newFiles.length}...`;
+          const url = await uploadStorePhoto(newFiles[i], (store?store.code:'survey')+'_'+q.id+'_'+(i+1), store?store.code:'');
+          uploadedUrls.push(url);
+        }
+        currentFillAnswers[q.id] = (currentFillMultiPhotoExisting[q.id]||[]).concat(uploadedUrls);
       }
     }
     const readableLines = [];
@@ -3148,6 +3204,24 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     }
   }
 
+  // تنبيه عام: أي محل تاني قريب (250 متر) وبنفس الاسم بالظبط، ممكن يكون نفس العميل بيتضاف تاني غلط
+  {
+    const nearbySameName = state.stores.find(s=>
+      s.status==='valid' && s.id!==state.replacingFor &&
+      s.name.trim().toLowerCase()===name.trim().toLowerCase() &&
+      haversineMeters(lat,lng,s.lat,s.lng) <= NEARBY_CHAIN_CHECK_METERS
+    );
+    if(nearbySameName){
+      const sameCustomer = confirm(`في محل تاني قريب منك (أقل من ${NEARBY_CHAIN_CHECK_METERS} متر) بنفس الاسم بالظبط:\n"${nearbySameName.name}"\n\nهل ده هو نفس المحل؟`);
+      if(sameCustomer){
+        overlayStore.classList.remove('show');
+        showToast('تم إلغاء الإضافة — المحل موجود بالفعل قريب منك بنفس الاسم');
+        return;
+      }
+      // قال "لأ، غيره" -> يكمل الإضافة عادي
+    }
+  }
+
   if(!state.isAdmin){
     const saveBtn = document.getElementById('store-save');
     saveBtn.disabled = true;
@@ -3197,11 +3271,6 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   saveBtn.disabled = false;
   saveBtn.textContent = originalBtnText;
 
-  const newStoreDetails = {
-    strongStore, jhinaFridge, energyDrinks, addReason,
-    photoUrls,
-  };
-
   const newStore = {
     id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     name, code, lat, lng, status:'valid', storeType: type, gasStationChain: chain || undefined,
@@ -3212,7 +3281,25 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   saveStores();
   renderMarkers();
   overlayStore.classList.remove('show');
-  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore, newStoreDetails);
+  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore);
+  // بيانات الـ checklist والصور بتتسجل كرد على استبيان "إضافة عميل جديد" المدمج، عشان تقدر ترجعله تعدله بعدين من غير قيد اللوكيشن
+  fetch(ACTION_LOG_ENDPOINT, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      kind:'submitSurveyResponse',
+      repCode: state.repCode,
+      storeCode: code,
+      storeName: name,
+      surveyId: BUILT_IN_ADD_STORE_SURVEY_ID,
+      answers: {
+        q_strong: strongStore,
+        q_jhina: jhinaFridge,
+        q_energy: energyDrinks,
+        q_reason: addReason,
+        q_photos: photoUrls,
+      },
+    }),
+  }).catch(()=>{});
 
   if(assignment.suspended){
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
