@@ -283,6 +283,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
           <button class="dd-item admin-only" id="btn-bulk-zone" style="display:none;"><span>▭</span> تحديد جماعي للزون</button>
           <button class="dd-item admin-only" id="btn-swap-days" style="display:none;"><span>🔁</span> تبديل يومين بالكامل</button>
           <button class="dd-item admin-only" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
+          <button class="dd-item admin-only" id="btn-manage-surveys" style="display:none;"><span>📋</span> إدارة الاستبيانات</button>
           <div class="dd-divider"></div>
           <button class="dd-item" id="btn-logout"><span>⏻</span> خروج</button>
         </div>
@@ -351,6 +352,59 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
         <button class="btn-danger" id="btn-restore-backup" style="flex:none;padding:9px 16px;">استرجاع</button>
       </div>
       <p class="hint" id="restore-hint" style="margin-top:8px;"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Admin: Surveys list ============ -->
+<div class="overlay" id="overlay-surveys">
+  <div class="modal" style="max-width:520px;">
+    <h3>إدارة الاستبيانات</h3>
+    <p class="hint">الاستبيانات دي بتظهر لكل المناديب لما يفتحوا أي محل، وممكن المندوب يملا نفس الاستبيان أكتر من مرة.</p>
+    <div id="surveys-list" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="surveys-close">قفل</button>
+      <button class="btn-solid" id="btn-new-survey">+ استبيان جديد</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Admin: Survey builder ============ -->
+<div class="overlay" id="overlay-survey-builder">
+  <div class="modal" style="max-width:640px;max-height:88vh;overflow-y:auto;">
+    <h3 id="survey-builder-title">استبيان جديد</h3>
+    <div class="field">
+      <label>اسم الاستبيان</label>
+      <input type="text" id="survey-name-input" placeholder="مثال: متابعة نقاط البيع">
+    </div>
+    <div id="survey-questions-list" style="display:flex;flex-direction:column;gap:14px;margin-top:14px;"></div>
+    <button class="btn-ghost" id="btn-add-question" style="width:100%;margin-top:12px;">+ أضف سؤال</button>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="survey-builder-cancel">إلغاء</button>
+      <button class="btn-solid" id="survey-builder-save">حفظ الاستبيان</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Rep: pick a survey for this store ============ -->
+<div class="overlay" id="overlay-survey-list">
+  <div class="modal" style="max-width:420px;">
+    <h3>الاستبيانات المتاحة</h3>
+    <div id="survey-pick-list" style="display:flex;flex-direction:column;gap:10px;margin-top:10px;"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="survey-pick-close">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Rep: fill a survey ============ -->
+<div class="overlay" id="overlay-survey-fill">
+  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto;">
+    <h3 id="survey-fill-title">الاستبيان</h3>
+    <div id="survey-fill-body" style="display:flex;flex-direction:column;gap:16px;margin-top:10px;"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="survey-fill-cancel">إلغاء</button>
+      <button class="btn-solid" id="survey-fill-submit">إرسال الاستبيان</button>
     </div>
   </div>
 </div>
@@ -508,14 +562,14 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <hr style="border:none;border-top:1.5px solid var(--line);margin:16px 0;">
 
     <div class="field">
-      <label>صورة واجهة المحل من الخارج (إجباري)</label>
-      <input type="file" accept="image/*" capture="environment" id="store-photo1" style="width:100%;">
-      <img id="store-photo1-preview" style="display:none;max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;object-fit:cover;">
-    </div>
-    <div class="field">
-      <label>صورة إضافية للمحل (اختياري)</label>
-      <input type="file" accept="image/*" capture="environment" id="store-photo2" style="width:100%;">
-      <img id="store-photo2-preview" style="display:none;max-width:100%;max-height:160px;border-radius:10px;margin-top:8px;object-fit:cover;">
+      <label>صور المحل (لازم صورة واحدة على الأقل، وتقدر تضيف كذا صورة)</label>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button type="button" class="btn-ghost" id="store-photo-camera-btn" style="flex:1;">📷 افتح الكاميرا</button>
+        <button type="button" class="btn-ghost" id="store-photo-gallery-btn" style="flex:1;">⬆️ رفع الصور</button>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="store-photo-camera-input" style="display:none;">
+      <input type="file" accept="image/*" id="store-photo-gallery-input" style="display:none;" multiple>
+      <div id="store-photos-preview" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
     <div class="field">
       <label>محل قوي؟</label>
@@ -815,6 +869,10 @@ const state = {
   pickingForStoreModal: false,
   editingStoreId: null,   // used by assign modal
   replacingFor: null,     // store being replaced (for add-store modal)
+  surveys: [],            // كل الاستبيانات اللي عملها الأدمن (مركزية على جوجل شيت)
+  surveyFillStoreId: null, // المحل اللي بنملى الاستبيان له دلوقتي
+  surveyBuilderQuestions: [], // الأسئلة اللي بنبنيها دلوقتي في محرر الاستبيان
+  surveyBuilderEditingId: null, // لو بنعدل استبيان موجود
 };
 
 /* ===================== Storage ===================== */
@@ -887,43 +945,28 @@ function logAction(actionType, storeCode, storeName, details, store, newStoreDet
   }catch(e){ /* تجاهل، التسجيل مش لازم يعطل حاجة */ }
 }
 
-/* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script ---------- */
-function resizeImageToBase64(file, maxDim, quality){
+/* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script (بنفس جودة وحجم الكاميرا الأصلي، من غير أي ضغط) ---------- */
+function fileToBase64Raw(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
     reader.onerror = ()=> reject(new Error('فشل قراءة الصورة'));
-    reader.onload = ()=>{
-      const img = new Image();
-      img.onerror = ()=> reject(new Error('فشل تحميل الصورة'));
-      img.onload = ()=>{
-        let w = img.width, h = img.height;
-        if(w > maxDim || h > maxDim){
-          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
-          else { w = Math.round(w * maxDim / h); h = maxDim; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality || 0.7);
-        resolve(dataUrl.split(',')[1]); // نرجع الـ base64 بس من غير الـ prefix
-      };
-      img.src = reader.result;
-    };
+    reader.onload = ()=> resolve(reader.result.split(',')[1]); // نرجع الـ base64 بس من غير الـ prefix، من غير أي إعادة رسم أو ضغط
     reader.readAsDataURL(file);
   });
 }
 
 async function uploadStorePhoto(file, fileNamePrefix, storeCode){
   if(!file) return '';
-  const base64 = await resizeImageToBase64(file, 1280, 0.7);
+  const base64 = await fileToBase64Raw(file);
+  const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'jpg';
   const res = await fetch(ACTION_LOG_ENDPOINT, {
     method: 'POST',
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
     body: JSON.stringify({
       kind: 'uploadImage',
       imageBase64: base64,
-      mimeType: 'image/jpeg',
-      fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.jpg',
+      mimeType: file.type || 'image/jpeg',
+      fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.' + ext,
       storeCode: storeCode || '',
     }),
   });
@@ -931,6 +974,444 @@ async function uploadStorePhoto(file, fileNamePrefix, storeCode){
   if(!data.ok) throw new Error(data.error || 'فشل رفع الصورة');
   return data.url;
 }
+
+/* ===================== نظام الاستبيانات ===================== */
+const SURVEY_QUESTION_TYPES = [
+  {key:'yesno', label:'نعم / لا'},
+  {key:'text', label:'نص كتابة'},
+  {key:'number', label:'أرقام'},
+  {key:'select', label:'قائمة اختيار واحد'},
+  {key:'multiselect', label:'قائمة اختيار أكتر من واحد'},
+  {key:'date', label:'تاريخ'},
+  {key:'photo', label:'صورة'},
+];
+
+async function loadSurveysFromServer(){
+  if(!ACTION_LOG_ENDPOINT) return;
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT + '?action=getSurveys');
+    const data = await res.json();
+    if(data.ok && Array.isArray(data.surveys)) state.surveys = data.surveys;
+  }catch(e){ console.warn('فشل تحميل الاستبيانات', e); }
+}
+
+/* ---------- أدمن: قايمة الاستبيانات ---------- */
+document.getElementById('btn-manage-surveys').addEventListener('click', async ()=>{
+  document.getElementById('overlay-surveys').classList.add('show');
+  document.getElementById('surveys-list').innerHTML = '<p class="hint">بيتحمل...</p>';
+  await loadSurveysFromServer();
+  renderSurveysAdminList();
+});
+document.getElementById('surveys-close').addEventListener('click', ()=>{
+  document.getElementById('overlay-surveys').classList.remove('show');
+});
+function renderSurveysAdminList(){
+  const box = document.getElementById('surveys-list');
+  if(state.surveys.length===0){
+    box.innerHTML = '<p class="hint">لسه مفيش استبيانات. دوس "+ استبيان جديد" عشان تعمل أول واحد.</p>';
+    return;
+  }
+  box.innerHTML = state.surveys.map(sv => `
+    <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:700;">${escapeHtml(sv.name||'(من غير اسم)')}</div>
+        <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="openSurveyBuilder('${sv.id}')">تعديل</button>
+        <button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>
+      </div>
+    </div>
+  `).join('');
+}
+document.getElementById('btn-new-survey').addEventListener('click', ()=>{
+  openSurveyBuilder(null);
+});
+
+/* ---------- أدمن: محرر الاستبيان ---------- */
+function newQuestionId(){ return 'q_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+
+window.openSurveyBuilder = function(surveyId){
+  const existing = surveyId ? state.surveys.find(s=>s.id===surveyId) : null;
+  state.surveyBuilderEditingId = existing ? existing.id : null;
+  state.surveyBuilderQuestions = existing ? JSON.parse(JSON.stringify(existing.questions||[])) : [];
+  document.getElementById('survey-builder-title').textContent = existing ? 'تعديل استبيان' : 'استبيان جديد';
+  document.getElementById('survey-name-input').value = existing ? existing.name : '';
+  renderSurveyBuilderQuestions();
+  document.getElementById('overlay-surveys').classList.remove('show');
+  document.getElementById('overlay-survey-builder').classList.add('show');
+};
+document.getElementById('survey-builder-cancel').addEventListener('click', ()=>{
+  document.getElementById('overlay-survey-builder').classList.remove('show');
+  document.getElementById('overlay-surveys').classList.add('show');
+});
+document.getElementById('btn-add-question').addEventListener('click', ()=>{
+  state.surveyBuilderQuestions.push({id:newQuestionId(), text:'', type:'text', options:[], required:true, dependsOn:null});
+  renderSurveyBuilderQuestions();
+});
+
+function renderSurveyBuilderQuestions(){
+  const box = document.getElementById('survey-questions-list');
+  const list = state.surveyBuilderQuestions;
+  if(list.length===0){
+    box.innerHTML = '<p class="hint">مفيش أسئلة لسه، دوس "+ أضف سؤال" تحت.</p>';
+    return;
+  }
+  box.innerHTML = list.map((q, idx)=>{
+    const priorQuestions = list.slice(0, idx);
+    const needsOptions = (q.type==='select' || q.type==='multiselect');
+    const dependsQ = q.dependsOn ? list.find(pq=>pq.id===q.dependsOn.questionId) : null;
+    let dependsValueOptions = [];
+    if(dependsQ){
+      if(dependsQ.type==='yesno') dependsValueOptions = ['نعم','لا'];
+      else if(dependsQ.type==='select' || dependsQ.type==='multiselect') dependsValueOptions = dependsQ.options||[];
+    }
+    return `
+      <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b>سؤال ${idx+1}</b>
+          <div style="display:flex;gap:6px;">
+            ${idx>0 ? `<button class="btn-ghost" style="padding:4px 9px;font-size:12px;" onclick="moveSurveyQuestion(${idx},-1)">▲</button>` : ''}
+            ${idx<list.length-1 ? `<button class="btn-ghost" style="padding:4px 9px;font-size:12px;" onclick="moveSurveyQuestion(${idx},1)">▼</button>` : ''}
+            <button class="btn-danger" style="padding:4px 9px;font-size:12px;" onclick="removeSurveyQuestion(${idx})">حذف</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>نص السؤال</label>
+          <input type="text" value="${escapeHtml(q.text)}" oninput="updateSurveyQuestionText(${idx}, this.value)">
+        </div>
+        <div class="field">
+          <label>نوع الإجابة</label>
+          <select onchange="updateSurveyQuestionType(${idx}, this.value)" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);">
+            ${SURVEY_QUESTION_TYPES.map(t=>`<option value="${t.key}" ${q.type===t.key?'selected':''}>${t.label}</option>`).join('')}
+          </select>
+        </div>
+        ${needsOptions ? `
+        <div class="field">
+          <label>الاختيارات (كل اختيار في سطر)</label>
+          <textarea rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" oninput="updateSurveyQuestionOptions(${idx}, this.value)">${escapeHtml((q.options||[]).join('\n'))}</textarea>
+        </div>` : ''}
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink-soft);margin-top:6px;">
+          <input type="checkbox" ${q.required?'checked':''} onchange="updateSurveyQuestionRequired(${idx}, this.checked)">
+          سؤال إجباري
+        </label>
+        ${priorQuestions.length>0 ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);">
+          <label style="font-size:12.5px;color:var(--ink-soft);">شرط الظهور (اختياري)</label>
+          <select onchange="updateSurveyQuestionDependsOn(${idx}, this.value)" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;">
+            <option value="">يظهر دايمًا</option>
+            ${priorQuestions.map(pq=>`<option value="${pq.id}" ${q.dependsOn && q.dependsOn.questionId===pq.id ? 'selected':''}>يظهر بس لو إجابة "${escapeHtml(pq.text||'سؤال بدون نص')}" =</option>`).join('')}
+          </select>
+          ${dependsQ ? `
+          <select onchange="updateSurveyQuestionDependsValue(${idx}, this.value)" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid var(--line);margin-top:6px;">
+            <option value="">اختار القيمة...</option>
+            ${dependsValueOptions.map(v=>`<option value="${escapeHtml(v)}" ${q.dependsOn && q.dependsOn.value===v ? 'selected':''}>${escapeHtml(v)}</option>`).join('')}
+          </select>` : ''}
+        </div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+window.updateSurveyQuestionText = function(idx, value){
+  if(state.surveyBuilderQuestions[idx]) state.surveyBuilderQuestions[idx].text = value;
+};
+window.updateSurveyQuestionType = function(idx, value){
+  const q = state.surveyBuilderQuestions[idx];
+  if(!q) return;
+  q.type = value;
+  if(value!=='select' && value!=='multiselect') q.options = [];
+  renderSurveyBuilderQuestions();
+};
+window.updateSurveyQuestionOptions = function(idx, value){
+  const q = state.surveyBuilderQuestions[idx];
+  if(!q) return;
+  q.options = value.split('\n').map(s=>s.trim()).filter(Boolean);
+};
+window.updateSurveyQuestionRequired = function(idx, checked){
+  if(state.surveyBuilderQuestions[idx]) state.surveyBuilderQuestions[idx].required = checked;
+};
+window.updateSurveyQuestionDependsOn = function(idx, questionId){
+  const q = state.surveyBuilderQuestions[idx];
+  if(!q) return;
+  q.dependsOn = questionId ? {questionId, value:''} : null;
+  renderSurveyBuilderQuestions();
+};
+window.updateSurveyQuestionDependsValue = function(idx, value){
+  const q = state.surveyBuilderQuestions[idx];
+  if(q && q.dependsOn) q.dependsOn.value = value;
+};
+window.moveSurveyQuestion = function(idx, dir){
+  const arr = state.surveyBuilderQuestions;
+  const newIdx = idx+dir;
+  if(newIdx<0 || newIdx>=arr.length) return;
+  const tmp = arr[idx]; arr[idx] = arr[newIdx]; arr[newIdx] = tmp;
+  renderSurveyBuilderQuestions();
+};
+window.removeSurveyQuestion = function(idx){
+  const removed = state.surveyBuilderQuestions[idx];
+  state.surveyBuilderQuestions.splice(idx,1);
+  state.surveyBuilderQuestions.forEach(q=>{
+    if(q.dependsOn && q.dependsOn.questionId===removed.id) q.dependsOn = null;
+  });
+  renderSurveyBuilderQuestions();
+};
+
+document.getElementById('survey-builder-save').addEventListener('click', async ()=>{
+  const name = document.getElementById('survey-name-input').value.trim();
+  if(!name){ showToast('اكتب اسم للاستبيان الأول'); return; }
+  if(state.surveyBuilderQuestions.length===0){ showToast('ضيف سؤال واحد على الأقل'); return; }
+  for(const q of state.surveyBuilderQuestions){
+    if(!q.text || !q.text.trim()){ showToast('في سؤال من غير نص، اكتبه الأول'); return; }
+    if((q.type==='select'||q.type==='multiselect') && (!q.options || q.options.length===0)){
+      showToast(`السؤال "${q.text}" محتاج اختيارات`); return;
+    }
+  }
+  const btn = document.getElementById('survey-builder-save');
+  btn.disabled = true;
+  btn.textContent = 'بيتحفظ...';
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        kind:'saveSurvey',
+        survey: { id: state.surveyBuilderEditingId, name, questions: state.surveyBuilderQuestions },
+      }),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'فشل الحفظ');
+    showToast('اتحفظ الاستبيان ✓');
+    document.getElementById('overlay-survey-builder').classList.remove('show');
+    await loadSurveysFromServer();
+    renderSurveysAdminList();
+    document.getElementById('overlay-surveys').classList.add('show');
+  }catch(err){
+    showToast('حصلت مشكلة في الحفظ، جرب تاني');
+  }
+  btn.disabled = false;
+  btn.textContent = 'حفظ الاستبيان';
+});
+
+window.deleteSurveyById = async function(id){
+  if(!confirm('متأكد عايز تمسح الاستبيان ده؟ الردود اللي اتسجلت قبل كده هتفضل في الشيت.')) return;
+  try{
+    await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({kind:'deleteSurvey', id}),
+    });
+    showToast('اتمسح الاستبيان');
+    await loadSurveysFromServer();
+    renderSurveysAdminList();
+  }catch(e){ showToast('حصلت مشكلة، جرب تاني'); }
+};
+
+/* ---------- مندوب: اختيار وملء استبيان لمحل معين ---------- */
+window.openSurveysForStore = function(storeId){
+  state.surveyFillStoreId = storeId;
+  map.closePopup();
+  const box = document.getElementById('survey-pick-list');
+  if(state.surveys.length===0){
+    box.innerHTML = '<p class="hint">لسه مفيش استبيانات متاحة من الأدمن.</p>';
+  } else {
+    box.innerHTML = state.surveys.map(sv => `
+      <button class="pop-btn primary" style="width:100%;" onclick="openSurveyFillForm('${sv.id}')">${escapeHtml(sv.name)} (${(sv.questions||[]).length} سؤال)</button>
+    `).join('');
+  }
+  document.getElementById('overlay-survey-list').classList.add('show');
+};
+document.getElementById('survey-pick-close').addEventListener('click', ()=>{
+  document.getElementById('overlay-survey-list').classList.remove('show');
+});
+
+let currentFillSurvey = null;
+let currentFillAnswers = {};
+let currentFillPhotoFiles = {};
+let currentFillExistingPhotoUrls = {}; // qId -> رابط الصورة من رد سابق، بتفضل سارية إلا لو المندوب اختار صورة جديدة
+
+window.openSurveyFillForm = async function(surveyId){
+  const survey = state.surveys.find(s=>s.id===surveyId);
+  if(!survey) return;
+  currentFillSurvey = survey;
+  currentFillAnswers = {};
+  currentFillPhotoFiles = {};
+  currentFillExistingPhotoUrls = {};
+  document.getElementById('overlay-survey-list').classList.remove('show');
+  document.getElementById('survey-fill-title').textContent = survey.name;
+  document.getElementById('survey-fill-body').innerHTML = '<p class="hint">بيتحمل...</p>';
+  document.getElementById('overlay-survey-fill').classList.add('show');
+
+  const store = state.stores.find(s=>s.id===state.surveyFillStoreId);
+  if(store && ACTION_LOG_ENDPOINT){
+    try{
+      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyResponse&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
+      const data = await res.json();
+      if(data.ok && data.response){
+        currentFillAnswers = data.response.answers || {};
+        (survey.questions||[]).forEach(q=>{
+          if(q.type==='photo' && currentFillAnswers[q.id]) currentFillExistingPhotoUrls[q.id] = currentFillAnswers[q.id];
+        });
+        showToast('اتحملت آخر إجابات اتسجلت للمحل ده، وتقدر تعدلها');
+      }
+    }catch(e){ /* لو فشل التحميل، هيبدأ فاضي عادي من غير ما نوقف المندوب */ }
+  }
+  renderSurveyFillForm();
+};
+
+function isSurveyQuestionVisible(q){
+  if(!q.dependsOn || !q.dependsOn.questionId) return true;
+  const parentAnswer = currentFillAnswers[q.dependsOn.questionId];
+  if(parentAnswer==null) return false;
+  if(Array.isArray(parentAnswer)) return parentAnswer.includes(q.dependsOn.value);
+  return String(parentAnswer) === String(q.dependsOn.value);
+}
+
+function renderSurveyFillForm(){
+  const box = document.getElementById('survey-fill-body');
+  const qs = currentFillSurvey.questions || [];
+  box.innerHTML = qs.map((q, idx)=>{
+    if(!isSurveyQuestionVisible(q)) return '';
+    const reqStar = q.required ? ' <span style="color:var(--red);">*</span>' : '';
+    let inputHTML = '';
+    const val = currentFillAnswers[q.id];
+    if(q.type==='yesno'){
+      inputHTML = `
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn-ghost" style="flex:1;${val==='نعم'?'background:var(--green);color:#fff;border-color:var(--green);':''}" onclick="setSurveyAnswer('${q.id}','نعم')">نعم</button>
+          <button type="button" class="btn-ghost" style="flex:1;${val==='لا'?'background:var(--red);color:#fff;border-color:var(--red);':''}" onclick="setSurveyAnswer('${q.id}','لا')">لا</button>
+        </div>`;
+    } else if(q.type==='text'){
+      inputHTML = `<textarea rows="2" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" oninput="setSurveyAnswer('${q.id}', this.value, true)">${escapeHtml(val||'')}</textarea>`;
+    } else if(q.type==='number'){
+      inputHTML = `<input type="number" value="${val!=null?val:''}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" oninput="setSurveyAnswer('${q.id}', this.value, true)">`;
+    } else if(q.type==='date'){
+      inputHTML = `<input type="date" value="${val||''}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" onchange="setSurveyAnswer('${q.id}', this.value)">`;
+    } else if(q.type==='select'){
+      inputHTML = `<select style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" onchange="setSurveyAnswer('${q.id}', this.value)">
+        <option value="">اختار...</option>
+        ${(q.options||[]).map(o=>`<option value="${escapeHtml(o)}" ${val===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+      </select>`;
+    } else if(q.type==='multiselect'){
+      const selectedArr = Array.isArray(val) ? val : [];
+      inputHTML = (q.options||[]).map((o, optIdx)=>`
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-bottom:4px;">
+          <input type="checkbox" ${selectedArr.includes(o)?'checked':''} onchange="toggleSurveyMultiAnswer('${q.id}',${optIdx}, this.checked)">
+          ${escapeHtml(o)}
+        </label>`).join('');
+    } else if(q.type==='photo'){
+      const existingUrl = !currentFillPhotoFiles[q.id] ? currentFillExistingPhotoUrls[q.id] : '';
+      inputHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-camera-${q.id}').click()">📷 افتح الكاميرا</button>
+          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-gallery-${q.id}').click()">⬆️ رفع الصور</button>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="survey-photo-camera-${q.id}" style="display:none;" onchange="setSurveyPhotoFile('${q.id}', this.files[0])">
+        <input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" onchange="setSurveyPhotoFile('${q.id}', this.files[0])">
+        ${existingUrl ? `<p class="hint">في صورة متسجلة قبل كده — <a href="${existingUrl}" target="_blank">دوس هنا تشوفها</a>. اختار صورة جديدة بس لو عايز تستبدلها.</p>` : ''}
+        <img id="survey-photo-preview-${q.id}" style="display:none;max-width:100%;max-height:140px;border-radius:10px;margin-top:8px;object-fit:cover;">`;
+    }
+    return `
+      <div class="field">
+        <label>${idx+1}. ${escapeHtml(q.text)}${reqStar}</label>
+        ${inputHTML}
+      </div>`;
+  }).join('');
+}
+
+window.setSurveyAnswer = function(qId, value, skipRerender){
+  currentFillAnswers[qId] = value;
+  if(!skipRerender) renderSurveyFillForm();
+};
+window.toggleSurveyMultiAnswer = function(qId, optIdx, checked){
+  const q = (currentFillSurvey.questions||[]).find(qq=>qq.id===qId);
+  if(!q) return;
+  const option = q.options[optIdx];
+  if(!Array.isArray(currentFillAnswers[qId])) currentFillAnswers[qId] = [];
+  const arr = currentFillAnswers[qId];
+  const i = arr.indexOf(option);
+  if(checked && i===-1) arr.push(option);
+  if(!checked && i!==-1) arr.splice(i,1);
+  renderSurveyFillForm();
+};
+window.setSurveyPhotoFile = function(qId, file){
+  if(!file) return;
+  currentFillPhotoFiles[qId] = file;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const img = document.getElementById('survey-photo-preview-'+qId);
+    if(img){ img.src = reader.result; img.style.display='block'; }
+  };
+  reader.readAsDataURL(file);
+};
+
+document.getElementById('survey-fill-cancel').addEventListener('click', ()=>{
+  document.getElementById('overlay-survey-fill').classList.remove('show');
+});
+document.getElementById('survey-fill-submit').addEventListener('click', async ()=>{
+  const survey = currentFillSurvey;
+  if(!survey) return;
+  const qs = survey.questions || [];
+  for(const q of qs){
+    if(!isSurveyQuestionVisible(q)) continue;
+    if(!q.required) continue;
+    if(q.type==='photo'){
+      if(!currentFillPhotoFiles[q.id] && !currentFillExistingPhotoUrls[q.id]){ showToast(`لازم ترفع صورة للسؤال: ${q.text}`); return; }
+    } else if(q.type==='multiselect'){
+      if(!Array.isArray(currentFillAnswers[q.id]) || currentFillAnswers[q.id].length===0){ showToast(`جاوب على: ${q.text}`); return; }
+    } else {
+      const v = currentFillAnswers[q.id];
+      if(v==null || String(v).trim()===''){ showToast(`جاوب على: ${q.text}`); return; }
+    }
+  }
+
+  const store = state.stores.find(s=>s.id===state.surveyFillStoreId);
+  const btn = document.getElementById('survey-fill-submit');
+  btn.disabled = true;
+  btn.textContent = 'بيترفع...';
+
+  try{
+    for(const q of qs){
+      if(q.type==='photo' && isSurveyQuestionVisible(q)){
+        if(currentFillPhotoFiles[q.id]){
+          const url = await uploadStorePhoto(currentFillPhotoFiles[q.id], (store?store.code:'survey')+'_'+q.id, store?store.code:'');
+          currentFillAnswers[q.id] = url;
+        } else if(currentFillExistingPhotoUrls[q.id]){
+          currentFillAnswers[q.id] = currentFillExistingPhotoUrls[q.id]; // محافظين على الصورة القديمة لو مافيش صورة جديدة
+        }
+      }
+    }
+    const readableLines = [];
+    const answersToSend = {};
+    qs.forEach(q=>{
+      if(!isSurveyQuestionVisible(q)) return;
+      const v = currentFillAnswers[q.id];
+      answersToSend[q.id] = v != null ? v : '';
+      readableLines.push(`${q.text}: ${Array.isArray(v) ? v.join('، ') : (v!=null?v:'')}`);
+    });
+
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        kind:'submitSurveyResponse',
+        repCode: state.repCode,
+        storeCode: store ? store.code : '',
+        storeName: store ? store.name : '',
+        surveyName: survey.name,
+        surveyId: survey.id,
+        answers: answersToSend,
+        readableSummary: readableLines.join(' | '),
+      }),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'فشل الإرسال');
+    showToast('اتبعت الاستبيان بنجاح ✓');
+    document.getElementById('overlay-survey-fill').classList.remove('show');
+  }catch(err){
+    showToast('حصلت مشكلة في إرسال الاستبيان، جرب تاني');
+  }
+  btn.disabled = false;
+  btn.textContent = 'إرسال الاستبيان';
+});
 
 async function saveStores(){
   try{
@@ -1048,9 +1529,11 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   const showAdminEdit = state.isAdmin && !state.readOnly;
   adminOnlyEditItems.forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
   document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none'; // works in ALL overview too
+  document.getElementById('btn-manage-surveys').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('dd-admin-divider').style.display = state.isAdmin ? 'block' : 'none';
 
   weekSelect.value = state.readOnly ? '1' : await loadCurrentWeek(state.repCode);
+  loadSurveysFromServer(); // بنجيب الاستبيانات في الخلفية، مش لازم نستنى
 
   const editButtons = ['btn-add-mode','btn-export','btn-zones','btn-backup-import','btn-locate','btn-swap-days'];
   editButtons.forEach(id => document.getElementById(id).style.display = state.readOnly ? 'none' : 'flex');
@@ -1600,6 +2083,7 @@ function buildPopupHTML(store){
     actions = `<button class="pop-btn primary" onclick="openAssignModal('${store.id}')">إضافة لخط السير</button>`;
   }
   actions += `<button class="pop-btn dir" onclick="goToStore('${store.id}')">🧭 روح للمحل ده</button>`;
+  actions += `<button class="pop-btn primary" onclick="openSurveysForStore('${store.id}')">📋 الاستبيانات</button>`;
 
   const hasNote = !!(store.notes && store.notes.trim());
   const noteHTML = `
@@ -2537,10 +3021,8 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
   document.getElementById('store-lat').value = lat!=null ? lat.toFixed(6) : '';
   document.getElementById('store-lng').value = lng!=null ? lng.toFixed(6) : '';
 
-  document.getElementById('store-photo1').value = '';
-  document.getElementById('store-photo2').value = '';
-  document.getElementById('store-photo1-preview').style.display = 'none';
-  document.getElementById('store-photo2-preview').style.display = 'none';
+  currentStorePhotos = [];
+  renderStorePhotosPreview();
   document.getElementById('store-strong').value = '';
   document.getElementById('store-jhina-fridge').value = '';
   document.getElementById('store-energy-drinks').value = '';
@@ -2560,18 +3042,37 @@ document.getElementById('store-cancel').addEventListener('click', ()=>{
   overlayStore.classList.remove('show');
   state.pickingForStoreModal = false;
 });
-function wireStorePhotoPreview(inputId, previewId){
-  document.getElementById(inputId).addEventListener('change', (e)=>{
-    const file = e.target.files[0];
-    const preview = document.getElementById(previewId);
-    if(!file){ preview.style.display='none'; return; }
-    const reader = new FileReader();
-    reader.onload = ()=>{ preview.src = reader.result; preview.style.display='block'; };
-    reader.readAsDataURL(file);
-  });
+let currentStorePhotos = [];
+function renderStorePhotosPreview(){
+  const box = document.getElementById('store-photos-preview');
+  box.innerHTML = currentStorePhotos.map((file, idx)=>{
+    const url = URL.createObjectURL(file);
+    return `<div style="position:relative;width:84px;height:84px;">
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+      <button type="button" onclick="removeStorePhoto(${idx})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;">✕</button>
+    </div>`;
+  }).join('');
 }
-wireStorePhotoPreview('store-photo1','store-photo1-preview');
-wireStorePhotoPreview('store-photo2','store-photo2-preview');
+window.removeStorePhoto = function(idx){
+  currentStorePhotos.splice(idx,1);
+  renderStorePhotosPreview();
+};
+document.getElementById('store-photo-camera-btn').addEventListener('click', ()=>{
+  document.getElementById('store-photo-camera-input').click();
+});
+document.getElementById('store-photo-gallery-btn').addEventListener('click', ()=>{
+  document.getElementById('store-photo-gallery-input').click();
+});
+document.getElementById('store-photo-camera-input').addEventListener('change', (e)=>{
+  if(e.target.files[0]) currentStorePhotos.push(e.target.files[0]);
+  e.target.value = '';
+  renderStorePhotosPreview();
+});
+document.getElementById('store-photo-gallery-input').addEventListener('change', (e)=>{
+  Array.from(e.target.files).forEach(f=>currentStorePhotos.push(f));
+  e.target.value = '';
+  renderStorePhotosPreview();
+});
 document.getElementById('btn-pick-loc').addEventListener('click', ()=>{
   state.pickingForStoreModal = true;
   const btn = document.getElementById('btn-pick-loc');
@@ -2593,15 +3094,13 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     return;
   }
 
-  const photo1File = document.getElementById('store-photo1').files[0];
-  const photo2File = document.getElementById('store-photo2').files[0];
   const strongStore = document.getElementById('store-strong').value;
   const jhinaFridge = document.getElementById('store-jhina-fridge').value;
   const energyDrinks = document.getElementById('store-energy-drinks').value;
   const addReason = document.getElementById('store-add-reason').value.trim();
 
-  if(!photo1File){
-    showToast('لازم ترفع صورة واضحة لواجهة المحل من الخارج');
+  if(currentStorePhotos.length===0){
+    showToast('لازم صورة واحدة على الأقل لواجهة المحل من الخارج');
     return;
   }
   if(!strongStore || !jhinaFridge || !energyDrinks){
@@ -2682,11 +3181,13 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   const saveBtn = document.getElementById('store-save');
   saveBtn.disabled = true;
   const originalBtnText = saveBtn.textContent;
-  saveBtn.textContent = 'بيرفع الصور...';
-  let photo1Url = '', photo2Url = '';
+  const photoUrls = [];
   try{
-    photo1Url = await uploadStorePhoto(photo1File, code + '_1', code);
-    if(photo2File) photo2Url = await uploadStorePhoto(photo2File, code + '_2', code);
+    for(let i=0;i<currentStorePhotos.length;i++){
+      saveBtn.textContent = `بيرفع الصورة ${i+1} من ${currentStorePhotos.length}...`;
+      const url = await uploadStorePhoto(currentStorePhotos[i], code + '_' + (i+1), code);
+      photoUrls.push(url);
+    }
   }catch(err){
     saveBtn.disabled = false;
     saveBtn.textContent = originalBtnText;
@@ -2698,14 +3199,14 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
 
   const newStoreDetails = {
     strongStore, jhinaFridge, energyDrinks, addReason,
-    photo1Url, photo2Url,
+    photoUrls,
   };
 
   const newStore = {
     id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     name, code, lat, lng, status:'valid', storeType: type, gasStationChain: chain || undefined,
     assignment, zoneId: matchedZoneId, origin:'new',
-    strongStore, jhinaFridge, energyDrinks, addReason, photo1Url, photo2Url,
+    strongStore, jhinaFridge, energyDrinks, addReason, photoUrls,
   };
   state.stores.push(newStore);
   saveStores();
