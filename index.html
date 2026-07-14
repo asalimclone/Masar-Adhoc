@@ -242,12 +242,16 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <p class="sub">تخطيط خطوط سير الفريق على الخريطة</p>
 
     <div class="field">
+      <label>المشروع</label>
+      <select id="login-project"></select>
+    </div>
+    <div class="field">
       <label>اليوزر</label>
-      <select id="login-user"></select>
+      <input type="text" id="login-user" placeholder="اكتب اليوزر بتاعك" autocapitalize="none" autocomplete="username">
     </div>
     <div class="field">
       <label>الباسورد</label>
-      <input type="password" id="login-pass" maxlength="4" inputmode="numeric" placeholder="••••">
+      <input type="password" id="login-pass" placeholder="••••">
     </div>
     <div class="field" id="admin-rep-field" style="display:none;">
       <label>هتشتغل على بيانات مين؟</label>
@@ -284,9 +288,11 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
           <button class="dd-item admin-only" id="btn-swap-days" style="display:none;"><span>🔁</span> تبديل يومين بالكامل</button>
           <button class="dd-item admin-only" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
           <button class="dd-item admin-only" id="btn-manage-surveys" style="display:none;"><span>📋</span> إدارة الاستبيانات</button>
+          <button class="dd-item admin-only" id="btn-create-project" style="display:none;"><span>🗂️</span> إنشاء مشروع جديد</button>
           <button class="dd-item admin-only" id="btn-full-reset" style="display:none;color:var(--red);"><span>🗑️</span> تصفية كاملة (كل المناديب)</button>
           <button class="dd-item admin-only" id="btn-reset-sheets" style="display:none;color:var(--red);"><span>🗑️</span> تصفية شيتات جوجل شيت (السجلات)</button>
           <button class="dd-item admin-only" id="btn-add-rep" style="display:none;"><span>➕</span> إضافة مندوب جديد</button>
+          <button class="dd-item admin-only" id="btn-bulk-add-reps" style="display:none;"><span>📥</span> رفع مناديب بالإكسل (Bulk)</button>
           <button class="dd-item admin-only" id="btn-delete-rep" style="display:none;color:var(--red);"><span>🚫</span> حذف مندوب بالكامل</button>
           <button class="dd-item admin-only" id="btn-reenable-rep" style="display:none;"><span>✅</span> تفعيل مندوب معطّل</button>
           <div class="dd-divider"></div>
@@ -334,6 +340,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 
 <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none;">
 <input type="file" id="master-file-input" accept=".xlsx,.xls" style="display:none;">
+<input type="file" id="bulk-reps-file-input" accept=".xlsx,.xls" style="display:none;">
 <input type="file" id="backup-import-input" accept=".json" style="display:none;">
 
 <!-- ============ Master Update Progress ============ -->
@@ -886,7 +893,7 @@ const state = {
 /* ===================== Storage ===================== */
 async function loadStores(repCode){
   try{
-    const res = await window.storage.get('stores:'+repCode, true);
+    const res = await window.storage.get(pk('stores:'+repCode), true);
     if(res && res.value){
       const parsed = JSON.parse(res.value);
       if(Array.isArray(parsed) && parsed.length>0) return parsed;
@@ -896,7 +903,7 @@ async function loadStores(repCode){
   const seed = (window.__SEED_DATA__ && window.__SEED_DATA__[repCode]) ? window.__SEED_DATA__[repCode] : null;
   if(seed && seed.length){
     const cloned = JSON.parse(JSON.stringify(seed));
-    try{ await window.storage.set('stores:'+repCode, JSON.stringify(cloned), true); }catch(e){}
+    try{ await window.storage.set(pk('stores:'+repCode), JSON.stringify(cloned), true); }catch(e){}
     return cloned;
   }
   return [];
@@ -904,11 +911,18 @@ async function loadStores(repCode){
 /* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
 const ACTION_LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzbQUE-XXmIslXt7lzwxRMOJFCuK73mMUV1WjaAhOFJNmG-d95j2FvZHc8XliO1W01Tpw/exec';
 
+/* ===================== المشاريع (Multi-Project) ===================== */
+// كل مشروع منفصل تمامًا: مناديب مختلفة، بيانات مختلفة، شيت جوجل شيت ودرايف منفصلين.
+// المشروع الحالي بيتحدد من ليستة صفحة تسجيل الدخول، وكل مفاتيح التخزين المحلي (window.storage) بتتحط جوه namespace بتاعه.
+let currentProject = localStorage.getItem('masar_last_project') || 'gorilla';
+function pk(key){ return currentProject + '::' + key; }
+
 /* ---------- تنبيهات: محاولات مشبوهة تتبعت للأدمن دايمًا (حتى لو state.readOnly) ---------- */
 function logAlert(type, details, storeCode, storeName){
   if(!ACTION_LOG_ENDPOINT) return;
   try{
     const payload = {
+      project: currentProject,
       repCode: state.repCode,
       actionType: '⚠️ تنبيه',
       storeCode: storeCode!=null ? String(storeCode) : '',
@@ -932,6 +946,7 @@ function logAction(actionType, storeCode, storeName, details, store, newStoreDet
   if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
   try{
     const payload = {
+      project: currentProject,
       repCode: state.repCode,
       actionType,
       storeCode: storeCode!=null ? String(storeCode) : '',
@@ -972,6 +987,7 @@ async function uploadStorePhoto(file, fileNamePrefix, storeCode){
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
     body: JSON.stringify({
       kind: 'uploadImage',
+      project: currentProject,
       imageBase64: base64,
       mimeType: file.type || 'image/jpeg',
       fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.' + ext,
@@ -999,7 +1015,7 @@ const BUILT_IN_ADD_STORE_SURVEY_ID = 'built_in_add_store';
 async function loadSurveysFromServer(){
   if(!ACTION_LOG_ENDPOINT) return;
   try{
-    const res = await fetch(ACTION_LOG_ENDPOINT + '?action=getSurveys');
+    const res = await fetch(ACTION_LOG_ENDPOINT + '?action=getSurveys&project=' + encodeURIComponent(currentProject));
     const data = await res.json();
     if(data.ok && Array.isArray(data.surveys)) state.surveys = data.surveys;
   }catch(e){ console.warn('فشل تحميل الاستبيانات', e); }
@@ -1014,6 +1030,24 @@ document.getElementById('btn-manage-surveys').addEventListener('click', async ()
 });
 document.getElementById('surveys-close').addEventListener('click', ()=>{
   document.getElementById('overlay-surveys').classList.remove('show');
+});
+
+document.getElementById('btn-create-project').addEventListener('click', async ()=>{
+  const nameInput = prompt('اكتب اسم المشروع الجديد (بالإنجليزي مفضّل، من غير مسافات، زي: newproject):');
+  if(!nameInput) return;
+  const name = nameInput.trim();
+  if(!name){ showToast('اكتب اسم صحيح'); return; }
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ kind:'createProject', name }),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'فشل الإنشاء');
+    showToast(`اتعمل مشروع "${data.project}" ✓ — سجّل خروج وهتلاقيه في ليستة "المشروع" في شاشة الدخول`);
+  }catch(err){
+    showToast('حصلت مشكلة في إنشاء المشروع، جرب تاني');
+  }
 });
 function renderSurveysAdminList(){
   const box = document.getElementById('surveys-list');
@@ -1189,6 +1223,7 @@ document.getElementById('survey-builder-save').addEventListener('click', async (
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         kind:'saveSurvey',
+        project: currentProject,
         survey: { id: state.surveyBuilderEditingId, name, questions: state.surveyBuilderQuestions },
       }),
     });
@@ -1211,7 +1246,7 @@ window.deleteSurveyById = async function(id){
   try{
     await fetch(ACTION_LOG_ENDPOINT, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({kind:'deleteSurvey', id}),
+      body: JSON.stringify({kind:'deleteSurvey', project: currentProject, id}),
     });
     showToast('اتمسح الاستبيان');
     await loadSurveysFromServer();
@@ -1223,11 +1258,16 @@ window.deleteSurveyById = async function(id){
 window.openSurveysForStore = function(storeId){
   state.surveyFillStoreId = storeId;
   map.closePopup();
+  const store = state.stores.find(s=>s.id===storeId);
+  // استبيان "إضافة عميل جديد" مخصوص بس للمحلات اللي اتضافت من جوه الابليكيشن نفسه (origin='new')، مش للمحلات الأساسية المستوردة من الشيت الرئيسي
+  const visibleSurveys = state.surveys.filter(sv =>
+    sv.id !== BUILT_IN_ADD_STORE_SURVEY_ID || (store && store.origin === 'new')
+  );
   const box = document.getElementById('survey-pick-list');
-  if(state.surveys.length===0){
+  if(visibleSurveys.length===0){
     box.innerHTML = '<p class="hint">لسه مفيش استبيانات متاحة من الأدمن.</p>';
   } else {
-    box.innerHTML = state.surveys.map(sv => `
+    box.innerHTML = visibleSurveys.map(sv => `
       <button class="pop-btn primary" style="width:100%;" onclick="openSurveyFillForm('${sv.id}')">${escapeHtml(sv.name)} (${(sv.questions||[]).length} سؤال)</button>
     `).join('');
   }
@@ -1239,20 +1279,16 @@ document.getElementById('survey-pick-close').addEventListener('click', ()=>{
 
 let currentFillSurvey = null;
 let currentFillAnswers = {};
-let currentFillPhotoFiles = {};
-let currentFillExistingPhotoUrls = {}; // qId -> رابط الصورة من رد سابق (نوع "صورة واحدة")، بتفضل سارية إلا لو المندوب اختار صورة جديدة
-let currentFillMultiPhotoNewFiles = {}; // qId -> array من الملفات الجديدة (نوع "صور متعددة")
-let currentFillMultiPhotoExisting = {}; // qId -> array من روابط الصور القديمة (نوع "صور متعددة")، كل واحدة تقدر تتشال لوحدها
+let currentFillNewPhotoFiles = {}; // qId -> array من الملفات الجديدة (بينطبق على نوع "صورة واحدة" و"صور متعددة" الاتنين)
+let currentFillExistingFolderUrl = {}; // qId -> رابط فولدر صور المحل على درايف من رد سابق (لو موجود)، للعرض بس
 
 window.openSurveyFillForm = async function(surveyId){
   const survey = state.surveys.find(s=>s.id===surveyId);
   if(!survey) return;
   currentFillSurvey = survey;
   currentFillAnswers = {};
-  currentFillPhotoFiles = {};
-  currentFillExistingPhotoUrls = {};
-  currentFillMultiPhotoNewFiles = {};
-  currentFillMultiPhotoExisting = {};
+  currentFillNewPhotoFiles = {};
+  currentFillExistingFolderUrl = {};
   document.getElementById('overlay-survey-list').classList.remove('show');
   document.getElementById('survey-fill-title').textContent = survey.name;
   document.getElementById('survey-fill-body').innerHTML = '<p class="hint">بيتحمل...</p>';
@@ -1261,13 +1297,12 @@ window.openSurveyFillForm = async function(surveyId){
   const store = state.stores.find(s=>s.id===state.surveyFillStoreId);
   if(store && ACTION_LOG_ENDPOINT){
     try{
-      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyResponse&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
+      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyResponse&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
       const data = await res.json();
       if(data.ok && data.response){
         currentFillAnswers = data.response.answers || {};
         (survey.questions||[]).forEach(q=>{
-          if(q.type==='photo' && currentFillAnswers[q.id]) currentFillExistingPhotoUrls[q.id] = currentFillAnswers[q.id];
-          if(q.type==='multiphoto') currentFillMultiPhotoExisting[q.id] = Array.isArray(currentFillAnswers[q.id]) ? currentFillAnswers[q.id].slice() : [];
+          if((q.type==='photo' || q.type==='multiphoto') && currentFillAnswers[q.id]) currentFillExistingFolderUrl[q.id] = currentFillAnswers[q.id];
         });
         showToast('اتحملت آخر إجابات اتسجلت للمحل ده، وتقدر تعدلها');
       }
@@ -1316,36 +1351,23 @@ function renderSurveyFillForm(){
           <input type="checkbox" ${selectedArr.includes(o)?'checked':''} onchange="toggleSurveyMultiAnswer('${q.id}',${optIdx}, this.checked)">
           ${escapeHtml(o)}
         </label>`).join('');
-    } else if(q.type==='photo'){
-      const existingUrl = !currentFillPhotoFiles[q.id] ? currentFillExistingPhotoUrls[q.id] : '';
+    } else if(q.type==='photo' || q.type==='multiphoto'){
+      const existingFolderUrl = currentFillExistingFolderUrl[q.id];
+      const newFiles = currentFillNewPhotoFiles[q.id] || [];
+      const thumbs = newFiles.map((file, i)=>`
+        <div style="position:relative;width:74px;height:74px;">
+          <img src="${URL.createObjectURL(file)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+          <button type="button" onclick="removeSurveyNewPhoto('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
+        </div>`).join('');
+      const singleOnly = q.type==='photo';
       inputHTML = `
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-camera-${q.id}').click()">📷 افتح الكاميرا</button>
           <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-gallery-${q.id}').click()">⬆️ رفع الصور</button>
         </div>
-        <input type="file" accept="image/*" capture="environment" id="survey-photo-camera-${q.id}" style="display:none;" onchange="setSurveyPhotoFile('${q.id}', this.files[0])">
-        <input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" onchange="setSurveyPhotoFile('${q.id}', this.files[0])">
-        ${existingUrl ? `<p class="hint">في صورة متسجلة قبل كده — <a href="${existingUrl}" target="_blank">دوس هنا تشوفها</a>. اختار صورة جديدة بس لو عايز تستبدلها.</p>` : ''}
-        <img id="survey-photo-preview-${q.id}" style="display:none;max-width:100%;max-height:140px;border-radius:10px;margin-top:8px;object-fit:cover;">`;
-    } else if(q.type==='multiphoto'){
-      const existingUrls = currentFillMultiPhotoExisting[q.id] || [];
-      const newFiles = currentFillMultiPhotoNewFiles[q.id] || [];
-      const thumbs = existingUrls.map((url, i)=>`
-        <div style="position:relative;width:74px;height:74px;">
-          <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
-          <button type="button" onclick="removeSurveyMultiPhotoExisting('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
-        </div>`).join('') + newFiles.map((file, i)=>`
-        <div style="position:relative;width:74px;height:74px;">
-          <img src="${URL.createObjectURL(file)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
-          <button type="button" onclick="removeSurveyMultiPhotoNew('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
-        </div>`).join('');
-      inputHTML = `
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-mphoto-camera-${q.id}').click()">📷 افتح الكاميرا</button>
-          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-mphoto-gallery-${q.id}').click()">⬆️ رفع الصور</button>
-        </div>
-        <input type="file" accept="image/*" capture="environment" id="survey-mphoto-camera-${q.id}" style="display:none;" onchange="addSurveyMultiPhoto('${q.id}', this.files)">
-        <input type="file" accept="image/*" id="survey-mphoto-gallery-${q.id}" style="display:none;" multiple onchange="addSurveyMultiPhoto('${q.id}', this.files)">
+        <input type="file" accept="image/*" capture="environment" id="survey-photo-camera-${q.id}" style="display:none;" onchange="addSurveyPhoto('${q.id}', this.files, ${singleOnly})">
+        <input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" ${singleOnly?'':'multiple'} onchange="addSurveyPhoto('${q.id}', this.files, ${singleOnly})">
+        ${existingFolderUrl ? `<p class="hint">في صور اتسجلت قبل كده لنفس المحل — <a href="${existingFolderUrl}" target="_blank">دوس هنا تشوف فولدر الصور على درايف</a>. أي صورة جديدة هتتضاف لنفس الفولدر.</p>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:8px;">${thumbs}</div>`;
     }
     return `
@@ -1371,27 +1393,17 @@ window.toggleSurveyMultiAnswer = function(qId, optIdx, checked){
   if(!checked && i!==-1) arr.splice(i,1);
   renderSurveyFillForm();
 };
-window.setSurveyPhotoFile = function(qId, file){
-  if(!file) return;
-  currentFillPhotoFiles[qId] = file;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    const img = document.getElementById('survey-photo-preview-'+qId);
-    if(img){ img.src = reader.result; img.style.display='block'; }
-  };
-  reader.readAsDataURL(file);
-};
-window.addSurveyMultiPhoto = function(qId, fileList){
-  if(!currentFillMultiPhotoNewFiles[qId]) currentFillMultiPhotoNewFiles[qId] = [];
-  Array.from(fileList).forEach(f=>currentFillMultiPhotoNewFiles[qId].push(f));
+window.addSurveyPhoto = function(qId, fileList, singleOnly){
+  if(singleOnly){
+    currentFillNewPhotoFiles[qId] = fileList[0] ? [fileList[0]] : [];
+  } else {
+    if(!currentFillNewPhotoFiles[qId]) currentFillNewPhotoFiles[qId] = [];
+    Array.from(fileList).forEach(f=>currentFillNewPhotoFiles[qId].push(f));
+  }
   renderSurveyFillForm();
 };
-window.removeSurveyMultiPhotoNew = function(qId, idx){
-  if(currentFillMultiPhotoNewFiles[qId]) currentFillMultiPhotoNewFiles[qId].splice(idx,1);
-  renderSurveyFillForm();
-};
-window.removeSurveyMultiPhotoExisting = function(qId, idx){
-  if(currentFillMultiPhotoExisting[qId]) currentFillMultiPhotoExisting[qId].splice(idx,1);
+window.removeSurveyNewPhoto = function(qId, idx){
+  if(currentFillNewPhotoFiles[qId]) currentFillNewPhotoFiles[qId].splice(idx,1);
   renderSurveyFillForm();
 };
 
@@ -1405,11 +1417,10 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
   for(const q of qs){
     if(!isSurveyQuestionVisible(q)) continue;
     if(!q.required) continue;
-    if(q.type==='photo'){
-      if(!currentFillPhotoFiles[q.id] && !currentFillExistingPhotoUrls[q.id]){ showToast(`لازم ترفع صورة للسؤال: ${q.text}`); return; }
-    } else if(q.type==='multiphoto'){
-      const total = (currentFillMultiPhotoExisting[q.id]||[]).length + (currentFillMultiPhotoNewFiles[q.id]||[]).length;
-      if(total===0){ showToast(`لازم صورة واحدة على الأقل للسؤال: ${q.text}`); return; }
+    if(q.type==='photo' || q.type==='multiphoto'){
+      const hasNew = (currentFillNewPhotoFiles[q.id]||[]).length > 0;
+      const hasExisting = !!currentFillExistingFolderUrl[q.id];
+      if(!hasNew && !hasExisting){ showToast(`لازم صورة واحدة على الأقل للسؤال: ${q.text}`); return; }
     } else if(q.type==='multiselect'){
       if(!Array.isArray(currentFillAnswers[q.id]) || currentFillAnswers[q.id].length===0){ showToast(`جاوب على: ${q.text}`); return; }
     } else {
@@ -1426,22 +1437,13 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
   try{
     for(const q of qs){
       if(!isSurveyQuestionVisible(q)) continue;
-      if(q.type==='photo'){
-        if(currentFillPhotoFiles[q.id]){
-          const url = await uploadStorePhoto(currentFillPhotoFiles[q.id], (store?store.code:'survey')+'_'+q.id, store?store.code:'');
-          currentFillAnswers[q.id] = url;
-        } else if(currentFillExistingPhotoUrls[q.id]){
-          currentFillAnswers[q.id] = currentFillExistingPhotoUrls[q.id]; // محافظين على الصورة القديمة لو مافيش صورة جديدة
-        }
-      } else if(q.type==='multiphoto'){
-        const newFiles = currentFillMultiPhotoNewFiles[q.id] || [];
-        const uploadedUrls = [];
+      if(q.type==='photo' || q.type==='multiphoto'){
+        const newFiles = currentFillNewPhotoFiles[q.id] || [];
         for(let i=0;i<newFiles.length;i++){
-          btn.textContent = `بيرفع صورة ${i+1} من ${newFiles.length}...`;
-          const url = await uploadStorePhoto(newFiles[i], (store?store.code:'survey')+'_'+q.id+'_'+(i+1), store?store.code:'');
-          uploadedUrls.push(url);
+          btn.textContent = newFiles.length>1 ? `بيرفع صورة ${i+1} من ${newFiles.length}...` : 'بيرفع الصورة...';
+          // بنرفعها في نفس فولدر المحل على درايف، مفيش لينك فردي بيتسجل - الرد كله بيرجع لرابط الفولدر بس
+          await uploadStorePhoto(newFiles[i], (store?store.code:'survey')+'_'+q.id+'_'+(i+1), store?store.code:'');
         }
-        currentFillAnswers[q.id] = (currentFillMultiPhotoExisting[q.id]||[]).concat(uploadedUrls);
       }
     }
     const readableLines = [];
@@ -1457,6 +1459,7 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         kind:'submitSurveyResponse',
+        project: currentProject,
         repCode: state.repCode,
         storeCode: store ? store.code : '',
         storeName: store ? store.name : '',
@@ -1479,14 +1482,14 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
 
 async function saveStores(){
   try{
-    await window.storage.set('stores:'+state.repCode, JSON.stringify(state.stores), true);
+    await window.storage.set(pk('stores:'+state.repCode), JSON.stringify(state.stores), true);
   }catch(e){
     showToast('في مشكلة في حفظ البيانات، حاول تاني');
   }
 }
 async function loadZones(repCode){
   try{
-    const res = await window.storage.get('zones:'+repCode, true);
+    const res = await window.storage.get(pk('zones:'+repCode), true);
     if(res && res.value){
       const parsed = JSON.parse(res.value);
       if(Array.isArray(parsed)) return parsed;
@@ -1496,7 +1499,7 @@ async function loadZones(repCode){
 }
 async function saveZones(){
   try{
-    await window.storage.set('zones:'+state.repCode, JSON.stringify(state.zones), true);
+    await window.storage.set(pk('zones:'+state.repCode), JSON.stringify(state.zones), true);
   }catch(e){
     showToast('في مشكلة في حفظ بيانات الزونات');
   }
@@ -1507,17 +1510,18 @@ const userSelect = document.getElementById('login-user');
 const adminRepField = document.getElementById('admin-rep-field');
 const adminRepSelect = document.getElementById('admin-rep-select');
 const restoreRepSelect = document.getElementById('restore-rep-select');
+const projectSelect = document.getElementById('login-project');
 
-let customReps = []; // مناديب زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين
+let customReps = []; // مناديب زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين، ومنفصلين لكل مشروع
 async function loadCustomReps(){
   try{
-    const res = await window.storage.get('custom_reps', true);
+    const res = await window.storage.get(pk('custom_reps'), true);
     const list = res && res.value ? JSON.parse(res.value) : [];
     customReps = Array.isArray(list) ? list : [];
   }catch(e){ customReps = []; }
 }
 function addRepOptionToAllSelects(code){
-  [userSelect, adminRepSelect, restoreRepSelect].forEach(sel=>{
+  [adminRepSelect, restoreRepSelect].forEach(sel=>{
     if(!sel) return;
     if([...sel.options].some(o=>o.value===code)) return;
     const opt = document.createElement('option');
@@ -1526,48 +1530,82 @@ function addRepOptionToAllSelects(code){
   });
 }
 
-(async function initLoginDropdowns(){
-  await loadCustomReps();
-
-  buildUsers().forEach(u=>{
-    const opt = document.createElement('option');
-    opt.value = u; opt.textContent = u==='admin' ? 'admin' : u;
-    userSelect.appendChild(opt);
-  });
+function resetRepSelectsToBase(){
+  adminRepSelect.innerHTML = '';
+  restoreRepSelect.innerHTML = '';
   for(let i=1;i<=44;i++){
-    const opt = document.createElement('option');
-    opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
-    adminRepSelect.appendChild(opt);
+    const opt1 = document.createElement('option');
+    opt1.value = 'TDM'+i; opt1.textContent = 'TDM'+i;
+    adminRepSelect.appendChild(opt1);
+    const opt2 = document.createElement('option');
+    opt2.value = 'TDM'+i; opt2.textContent = 'TDM'+i;
+    restoreRepSelect.appendChild(opt2);
   }
   const allOpt = document.createElement('option');
   allOpt.value = 'ALL'; allOpt.textContent = 'الكل (نظرة عامة + رفع تحديث)';
   adminRepSelect.insertBefore(allOpt, adminRepSelect.firstChild);
   adminRepSelect.value = 'ALL';
+}
 
-  for(let i=1;i<=44;i++){
-    const opt = document.createElement('option');
-    opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
-    restoreRepSelect.appendChild(opt);
-  }
+async function refreshProjectDependentUI(){
+  await loadCustomReps();
+  resetRepSelectsToBase();
   customReps.forEach(r => addRepOptionToAllSelects(r.code));
+}
+
+async function loadProjectsList(){
+  if(!ACTION_LOG_ENDPOINT) return ['gorilla'];
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT + '?action=getProjects');
+    const data = await res.json();
+    if(data.ok && Array.isArray(data.projects) && data.projects.length>0) return data.projects;
+  }catch(e){ /* هنرجع الافتراضي تحت */ }
+  return ['gorilla'];
+}
+
+(async function initLoginDropdowns(){
+  const projects = await loadProjectsList();
+  projectSelect.innerHTML = '';
+  projects.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    projectSelect.appendChild(opt);
+  });
+  if(!projects.includes(currentProject)) currentProject = projects[0];
+  projectSelect.value = currentProject;
+
+  await refreshProjectDependentUI();
 })();
 
-userSelect.addEventListener('change', ()=>{
-  adminRepField.style.display = userSelect.value === 'admin' ? 'block' : 'none';
+projectSelect.addEventListener('change', async ()=>{
+  currentProject = projectSelect.value;
+  localStorage.setItem('masar_last_project', currentProject);
+  await refreshProjectDependentUI();
+});
+
+userSelect.addEventListener('input', ()=>{
+  adminRepField.style.display = userSelect.value.trim().toLowerCase() === 'admin' ? 'block' : 'none';
 });
 
 document.getElementById('login-btn').addEventListener('click', async ()=>{
-  const user = userSelect.value;
+  currentProject = projectSelect.value; // تأكيد نهائي إن المشروع الصح متحدد قبل أي حفظ
+  localStorage.setItem('masar_last_project', currentProject);
+  const typedUser = userSelect.value.trim();
+  const user = buildUsers().find(u => u.toLowerCase() === typedUser.toLowerCase());
   const pass = document.getElementById('login-pass').value.trim();
   const err = document.getElementById('login-err');
   err.textContent = '';
+  if(!user){
+    err.textContent = 'اليوزر ده مش موجود';
+    return;
+  }
   if(pass !== passwordFor(user)){
     err.textContent = 'الباسورد غلط';
     return;
   }
   if(user !== 'admin'){
     try{
-      const disabledRes = await window.storage.get('disabled_reps', true);
+      const disabledRes = await window.storage.get(pk('disabled_reps'), true);
       const disabled = disabledRes && disabledRes.value ? JSON.parse(disabledRes.value) : [];
       if(Array.isArray(disabled) && disabled.includes(user)){
         err.textContent = 'الحساب ده معطّل، كلم الأدمن';
@@ -1627,9 +1665,11 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   adminOnlyEditItems.forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
   document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none'; // works in ALL overview too
   document.getElementById('btn-manage-surveys').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-create-project').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-full-reset').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-reset-sheets').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-add-rep').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-bulk-add-reps').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-delete-rep').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-reenable-rep').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('dd-admin-divider').style.display = state.isAdmin ? 'block' : 'none';
@@ -2304,14 +2344,14 @@ setInterval(maybeRemindMonthlyMinimum, 15 * 60 * 1000); // كل 15 دقيقة ط
 const weekSelect = document.getElementById('current-week-select');
 async function loadCurrentWeek(repCode){
   try{
-    const res = await window.storage.get('currentWeek:'+repCode, true);
+    const res = await window.storage.get(pk('currentWeek:'+repCode), true);
     if(res && res.value) return res.value;
   }catch(e){}
   return '1';
 }
 async function saveCurrentWeek(){
   if(state.readOnly) return;
-  try{ await window.storage.set('currentWeek:'+state.repCode, weekSelect.value, true); }catch(e){}
+  try{ await window.storage.set(pk('currentWeek:'+state.repCode), weekSelect.value, true); }catch(e){}
 }
 weekSelect.addEventListener('change', saveCurrentWeek);
 
@@ -3030,23 +3070,23 @@ function primaryCodeRangeFor(repCode){
 }
 async function loadOverflowMap(){
   try{
-    const res = await window.storage.get('code_overflow_map', true);
+    const res = await window.storage.get(pk('code_overflow_map'), true);
     if(res && res.value) return JSON.parse(res.value);
   }catch(e){}
   return {};
 }
 async function saveOverflowMap(map){
-  try{ await window.storage.set('code_overflow_map', JSON.stringify(map), true); }catch(e){}
+  try{ await window.storage.set(pk('code_overflow_map'), JSON.stringify(map), true); }catch(e){}
 }
 async function loadOverflowNext(){
   try{
-    const res = await window.storage.get('code_overflow_next', true);
+    const res = await window.storage.get(pk('code_overflow_next'), true);
     if(res && res.value) return parseInt(res.value, 10);
   }catch(e){}
   return CODE_OVERFLOW_POOL_START;
 }
 async function saveOverflowNext(n){
-  try{ await window.storage.set('code_overflow_next', String(n), true); }catch(e){}
+  try{ await window.storage.set(pk('code_overflow_next'), String(n), true); }catch(e){}
 }
 async function allocateNewOverflowBlock(repCode, overflowMap){
   const nextStart = await loadOverflowNext();
@@ -3333,6 +3373,7 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({
       kind:'submitSurveyResponse',
+      project: currentProject,
       repCode: state.repCode,
       storeCode: code,
       storeName: name,
@@ -3424,13 +3465,13 @@ document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
       const existingStores = await loadStores(rep);
       const existingZones = await loadZones(rep);
       try{
-        await window.storage.set('backup:'+rep, JSON.stringify({
+        await window.storage.set(pk('backup:'+rep), JSON.stringify({
           stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
         }), true);
       }catch(bErr){ console.error('backup failed for', rep, bErr); }
 
-      await window.storage.set('stores:'+rep, JSON.stringify([]), true);
-      await window.storage.set('zones:'+rep, JSON.stringify([]), true);
+      await window.storage.set(pk('stores:'+rep), JSON.stringify([]), true);
+      await window.storage.set(pk('zones:'+rep), JSON.stringify([]), true);
     }catch(err){
       console.error('full reset failed for', rep, err);
     }
@@ -3462,7 +3503,7 @@ document.getElementById('btn-reset-sheets').addEventListener('click', async ()=>
   try{
     const res = await fetch(ACTION_LOG_ENDPOINT, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ kind:'resetSheets', confirm:'تصفية كاملة' }),
+      body: JSON.stringify({ kind:'resetSheets', project: currentProject, confirm:'تصفية كاملة' }),
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error||'فشلت التصفية');
@@ -3474,7 +3515,7 @@ document.getElementById('btn-reset-sheets').addEventListener('click', async ()=>
 
 async function getDisabledReps(){
   try{
-    const res = await window.storage.get('disabled_reps', true);
+    const res = await window.storage.get(pk('disabled_reps'), true);
     const list = res && res.value ? JSON.parse(res.value) : [];
     return Array.isArray(list) ? list : [];
   }catch(e){ return []; }
@@ -3500,11 +3541,64 @@ document.getElementById('btn-add-rep').addEventListener('click', async ()=>{
   }
   customReps.push({code, password: password.trim()});
   try{
-    await window.storage.set('custom_reps', JSON.stringify(customReps), true);
+    await window.storage.set(pk('custom_reps'), JSON.stringify(customReps), true);
     addRepOptionToAllSelects(code);
     showToast(`اتضاف "${code}" بنجاح، وهيلاقي نفسه في قايمة الدخول من دلوقتي`);
   }catch(err){
     customReps.pop();
+    showToast('حصلت مشكلة في الحفظ، جرب تاني');
+  }
+});
+
+document.getElementById('btn-bulk-add-reps').addEventListener('click', ()=>{
+  document.getElementById('bulk-reps-file-input').click();
+});
+document.getElementById('bulk-reps-file-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+  if(!rows || rows.length < 2){
+    showToast('الملف فاضي أو مش مظبوط');
+    return;
+  }
+  const headerRow = rows[0];
+  const codeCol = findCol(headerRow, ['Code','كود','كود المندوب','Username','يوزر']);
+  const passCol = findCol(headerRow, ['Password','باسورد','كلمة السر']);
+  if(codeCol===-1 || passCol===-1){
+    showToast('الملف لازم يكون فيه عمود Code وعمود Password (أو كود / باسورد)');
+    return;
+  }
+
+  const existingUsers = buildUsers();
+  let added = 0, skipped = 0;
+  const addedCodes = [];
+  for(let r=1; r<rows.length; r++){
+    const row = rows[r];
+    if(!row || row[codeCol]==null) continue;
+    const code = String(row[codeCol]).trim().toUpperCase();
+    const password = row[passCol]!=null ? String(row[passCol]).trim() : '';
+    if(!code || !password || code==='ADMIN' || code==='ALL'){ skipped++; continue; }
+    if(existingUsers.includes(code) || addedCodes.includes(code)){ skipped++; continue; }
+    customReps.push({code, password});
+    addedCodes.push(code);
+    added++;
+  }
+
+  if(added===0){
+    showToast('مفيش يوزرات جديدة اتضافت (ممكن يكونوا موجودين بالفعل)');
+    return;
+  }
+  try{
+    await window.storage.set(pk('custom_reps'), JSON.stringify(customReps), true);
+    addedCodes.forEach(addRepOptionToAllSelects);
+    showToast(`اتضاف ${added} مندوب جديد ✓${skipped>0 ? ` (اتجاهل ${skipped} صف - مكرر أو ناقص بيانات)` : ''}`);
+  }catch(err){
+    customReps = customReps.filter(r=>!addedCodes.includes(r.code));
     showToast('حصلت مشكلة في الحفظ، جرب تاني');
   }
 });
@@ -3526,15 +3620,15 @@ document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
   try{
     const existingStores = await loadStores(rep);
     const existingZones = await loadZones(rep);
-    await window.storage.set('backup:'+rep, JSON.stringify({
+    await window.storage.set(pk('backup:'+rep), JSON.stringify({
       stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
     }), true);
-    await window.storage.set('stores:'+rep, JSON.stringify([]), true);
-    await window.storage.set('zones:'+rep, JSON.stringify([]), true);
+    await window.storage.set(pk('stores:'+rep), JSON.stringify([]), true);
+    await window.storage.set(pk('zones:'+rep), JSON.stringify([]), true);
 
     const disabled = await getDisabledReps();
     if(!disabled.includes(rep)) disabled.push(rep);
-    await window.storage.set('disabled_reps', JSON.stringify(disabled), true);
+    await window.storage.set(pk('disabled_reps'), JSON.stringify(disabled), true);
 
     showToast(`اتمسح "${rep}" بالكامل، وحسابه معطّل دلوقتي`);
   }catch(err){
@@ -3557,7 +3651,7 @@ document.getElementById('btn-reenable-rep').addEventListener('click', async ()=>
   }
   try{
     const updated = disabled.filter(r=>r!==rep);
-    await window.storage.set('disabled_reps', JSON.stringify(updated), true);
+    await window.storage.set(pk('disabled_reps'), JSON.stringify(updated), true);
     showToast(`اتفعّل حساب "${rep}" تاني، ويقدر يدخل من غير محلاته القديمة (لسه ممسوحة، ممكن تسترجعها من "استرجاع نسخة")`);
   }catch(err){
     showToast('حصلت مشكلة، جرب تاني');
@@ -3569,7 +3663,7 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
   const hint = document.getElementById('restore-hint');
   hint.textContent = 'بتدور على نسخة احتياطية...';
   try{
-    const res = await window.storage.get('backup:'+rep, true);
+    const res = await window.storage.get(pk('backup:'+rep), true);
     if(!res || !res.value){
       hint.textContent = `مفيش نسخة احتياطية محفوظة لـ ${rep}.`;
       return;
@@ -3577,8 +3671,8 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     const backup = JSON.parse(res.value);
     if(!confirm(`هيتم استرجاع بيانات ${rep} لآخر نسخة قبل التحديث (بتاريخ ${new Date(backup.savedAt).toLocaleString('ar-EG')}). أي تعديلات حصلت بعد كده هتتمسح. متأكد؟`)) return;
 
-    await window.storage.set('stores:'+rep, JSON.stringify(backup.stores||[]), true);
-    await window.storage.set('zones:'+rep, JSON.stringify(backup.zones||[]), true);
+    await window.storage.set(pk('stores:'+rep), JSON.stringify(backup.stores||[]), true);
+    await window.storage.set(pk('zones:'+rep), JSON.stringify(backup.zones||[]), true);
     hint.textContent = `تم استرجاع بيانات ${rep} بنجاح.`;
 
     if(!state.readOnly && state.repCode===rep){
@@ -3703,7 +3797,7 @@ document.getElementById('master-file-input').addEventListener('change', async (e
       const existing = await loadStores(rep);
       const existingZones = await loadZones(rep);
       try{
-        await window.storage.set('backup:'+rep, JSON.stringify({
+        await window.storage.set(pk('backup:'+rep), JSON.stringify({
           stores: existing, zones: existingZones, savedAt: new Date().toISOString(),
         }), true);
       }catch(bErr){ console.error('backup failed for', rep, bErr); }
@@ -3731,7 +3825,7 @@ document.getElementById('master-file-input').addEventListener('change', async (e
           byCode.set(key, inc);
         }
       });
-      await window.storage.set('stores:'+rep, JSON.stringify(existing), true);
+      await window.storage.set(pk('stores:'+rep), JSON.stringify(existing), true);
       totalRemoved += removedCount;
     }catch(err){
       console.error('failed updating', rep, err);
@@ -3937,8 +4031,8 @@ document.getElementById('backup-import-input').addEventListener('change', async 
     } else if(payload.type === 'ALL_REPS_BACKUP'){
       if(!confirm(`الملف ده نسخة شاملة لكل المناديب بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. هتستبدل بيانات كل المناديب الموجودين في الملف. متأكد؟`)) return;
       for(const [rep, d] of Object.entries(payload.data)){
-        await window.storage.set('stores:'+rep, JSON.stringify(d.stores||[]), true);
-        await window.storage.set('zones:'+rep, JSON.stringify(d.zones||[]), true);
+        await window.storage.set(pk('stores:'+rep), JSON.stringify(d.stores||[]), true);
+        await window.storage.set(pk('zones:'+rep), JSON.stringify(d.zones||[]), true);
       }
       showToast('اترجعت النسخة الشاملة لكل المناديب بنجاح');
       if(state.readOnly){
