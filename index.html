@@ -284,6 +284,11 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
           <button class="dd-item admin-only" id="btn-swap-days" style="display:none;"><span>🔁</span> تبديل يومين بالكامل</button>
           <button class="dd-item admin-only" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
           <button class="dd-item admin-only" id="btn-manage-surveys" style="display:none;"><span>📋</span> إدارة الاستبيانات</button>
+          <button class="dd-item admin-only" id="btn-full-reset" style="display:none;color:var(--red);"><span>🗑️</span> تصفية كاملة (كل المناديب)</button>
+          <button class="dd-item admin-only" id="btn-reset-sheets" style="display:none;color:var(--red);"><span>🗑️</span> تصفية شيتات جوجل شيت (السجلات)</button>
+          <button class="dd-item admin-only" id="btn-add-rep" style="display:none;"><span>➕</span> إضافة مندوب جديد</button>
+          <button class="dd-item admin-only" id="btn-delete-rep" style="display:none;color:var(--red);"><span>🚫</span> حذف مندوب بالكامل</button>
+          <button class="dd-item admin-only" id="btn-reenable-rep" style="display:none;"><span>✅</span> تفعيل مندوب معطّل</button>
           <div class="dd-divider"></div>
           <button class="dd-item" id="btn-logout"><span>⏻</span> خروج</button>
         </div>
@@ -845,11 +850,14 @@ async function checkTerritoryConflict(repCode, lat, lng){
 function buildUsers(){
   const list = [];
   for(let i=1;i<=44;i++) list.push('TDM'+i);
+  customReps.forEach(r=>list.push(r.code));
   list.push('admin');
   return list;
 }
 function passwordFor(code){
   if(code==='admin') return '1086';
+  const custom = customReps.find(r=>r.code===code);
+  if(custom) return custom.password;
   const n = parseInt(code.replace('TDM',''),10);
   if(n>=1 && n<=9) return String(n).repeat(4);
   if(n>=10 && n<=44) return String(n).repeat(2);
@@ -1498,28 +1506,51 @@ async function saveZones(){
 const userSelect = document.getElementById('login-user');
 const adminRepField = document.getElementById('admin-rep-field');
 const adminRepSelect = document.getElementById('admin-rep-select');
-
-buildUsers().forEach(u=>{
-  const opt = document.createElement('option');
-  opt.value = u; opt.textContent = u==='admin' ? 'admin' : u;
-  userSelect.appendChild(opt);
-});
-for(let i=1;i<=44;i++){
-  const opt = document.createElement('option');
-  opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
-  adminRepSelect.appendChild(opt);
-}
-const allOpt = document.createElement('option');
-allOpt.value = 'ALL'; allOpt.textContent = 'الكل (نظرة عامة + رفع تحديث)';
-adminRepSelect.insertBefore(allOpt, adminRepSelect.firstChild);
-adminRepSelect.value = 'ALL';
-
 const restoreRepSelect = document.getElementById('restore-rep-select');
-for(let i=1;i<=44;i++){
-  const opt = document.createElement('option');
-  opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
-  restoreRepSelect.appendChild(opt);
+
+let customReps = []; // مناديب زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين
+async function loadCustomReps(){
+  try{
+    const res = await window.storage.get('custom_reps', true);
+    const list = res && res.value ? JSON.parse(res.value) : [];
+    customReps = Array.isArray(list) ? list : [];
+  }catch(e){ customReps = []; }
 }
+function addRepOptionToAllSelects(code){
+  [userSelect, adminRepSelect, restoreRepSelect].forEach(sel=>{
+    if(!sel) return;
+    if([...sel.options].some(o=>o.value===code)) return;
+    const opt = document.createElement('option');
+    opt.value = code; opt.textContent = code;
+    sel.appendChild(opt);
+  });
+}
+
+(async function initLoginDropdowns(){
+  await loadCustomReps();
+
+  buildUsers().forEach(u=>{
+    const opt = document.createElement('option');
+    opt.value = u; opt.textContent = u==='admin' ? 'admin' : u;
+    userSelect.appendChild(opt);
+  });
+  for(let i=1;i<=44;i++){
+    const opt = document.createElement('option');
+    opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
+    adminRepSelect.appendChild(opt);
+  }
+  const allOpt = document.createElement('option');
+  allOpt.value = 'ALL'; allOpt.textContent = 'الكل (نظرة عامة + رفع تحديث)';
+  adminRepSelect.insertBefore(allOpt, adminRepSelect.firstChild);
+  adminRepSelect.value = 'ALL';
+
+  for(let i=1;i<=44;i++){
+    const opt = document.createElement('option');
+    opt.value = 'TDM'+i; opt.textContent = 'TDM'+i;
+    restoreRepSelect.appendChild(opt);
+  }
+  customReps.forEach(r => addRepOptionToAllSelects(r.code));
+})();
 
 userSelect.addEventListener('change', ()=>{
   adminRepField.style.display = userSelect.value === 'admin' ? 'block' : 'none';
@@ -1533,6 +1564,16 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   if(pass !== passwordFor(user)){
     err.textContent = 'الباسورد غلط';
     return;
+  }
+  if(user !== 'admin'){
+    try{
+      const disabledRes = await window.storage.get('disabled_reps', true);
+      const disabled = disabledRes && disabledRes.value ? JSON.parse(disabledRes.value) : [];
+      if(Array.isArray(disabled) && disabled.includes(user)){
+        err.textContent = 'الحساب ده معطّل، كلم الأدمن';
+        return;
+      }
+    }catch(e){ /* لو فشل التحقق، منكملش نمنع دخول شرعي بسبب مشكلة شبكة */ }
   }
   if(user === 'admin'){
     state.isAdmin = true;
@@ -1586,6 +1627,11 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   adminOnlyEditItems.forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
   document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none'; // works in ALL overview too
   document.getElementById('btn-manage-surveys').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-full-reset').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-reset-sheets').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-add-rep').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-delete-rep').style.display = state.isAdmin ? 'flex' : 'none';
+  document.getElementById('btn-reenable-rep').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('dd-admin-divider').style.display = state.isAdmin ? 'block' : 'none';
 
   weekSelect.value = state.readOnly ? '1' : await loadCurrentWeek(state.repCode);
@@ -3351,6 +3397,171 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
 /* ===================== Admin: Master sheet update ===================== */
 document.getElementById('btn-master-update').addEventListener('click', ()=>{
   document.getElementById('master-file-input').click();
+});
+
+document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
+  const warning = 'تحذير خطير:\n\nده هيمسح كل المحلات وكل الزونات (النطاقات) لكل الـ44 مندوب نهائيًا، وهيبدأ الخريطة فاضية تمامًا من الأول.\n\nهياخد باك أب لكل مندوب قبل المسح تقدر تسترجعه بعدين من "استرجاع نسخة"، لكن الأفضل تتأكد إنك عايز فعلاً تعمل كده.\n\nمتأكد عايز تكمل؟';
+  if(!confirm(warning)) return;
+  const typed = prompt('اكتب "تصفية كاملة" بالظبط عشان تأكد (من غير علامات تنصيص):');
+  if(typed !== 'تصفية كاملة'){
+    showToast('اتلغى — النص مطابقش، مفيش حاجة اتمسحت');
+    return;
+  }
+
+  const overlay = document.getElementById('overlay-master');
+  const progress = document.getElementById('master-progress');
+  const doneActions = document.getElementById('master-done-actions');
+  doneActions.style.display = 'none';
+  overlay.classList.add('show');
+
+  const repCodes = [];
+  for(let i=1;i<=44;i++) repCodes.push('TDM'+i);
+
+  let done = 0;
+  for(const rep of repCodes){
+    progress.textContent = `بيتصفّى ${rep}... (${done+1} من ${repCodes.length})`;
+    try{
+      const existingStores = await loadStores(rep);
+      const existingZones = await loadZones(rep);
+      try{
+        await window.storage.set('backup:'+rep, JSON.stringify({
+          stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
+        }), true);
+      }catch(bErr){ console.error('backup failed for', rep, bErr); }
+
+      await window.storage.set('stores:'+rep, JSON.stringify([]), true);
+      await window.storage.set('zones:'+rep, JSON.stringify([]), true);
+    }catch(err){
+      console.error('full reset failed for', rep, err);
+    }
+    done++;
+  }
+
+  progress.textContent = `تمت التصفية الكاملة لـ ${repCodes.length} مندوب ✓ الخريطة فاضية دلوقتي، وفيه باك أب محفوظ لكل مندوب لو احتجته تسترجعه.`;
+  doneActions.style.display = 'flex';
+
+  // لو الأدمن فاتح نظرة عامة أو مندوب معين دلوقتي، نحدّث الخريطة قدامه فورًا
+  if(state.repCode){
+    state.stores = await loadStores(state.repCode==='ALL' ? state.repCode : state.repCode);
+    state.zones = await loadZones(state.repCode);
+    renderMarkers();
+    renderZonesList && renderZonesList();
+    updateStats();
+  }
+});
+
+document.getElementById('btn-reset-sheets').addEventListener('click', async ()=>{
+  const warning = 'تحذير:\n\nده هيمسح كل الصفوف في شيتات "سجل الأحداث" و"التنبيهات" و"البيانات الحالية" في جوجل شيت (مسار - سجل مركزي)، وهيسيب الهيدر بس.\n\nده منفصل تمامًا عن تصفية المحلات من الخريطة. متأكد عايز تكمل؟';
+  if(!confirm(warning)) return;
+  const typed = prompt('اكتب "تصفية كاملة" بالظبط عشان تأكد:');
+  if(typed !== 'تصفية كاملة'){
+    showToast('اتلغى — النص مطابقش، مفيش حاجة اتمسحت');
+    return;
+  }
+  showToast('بيتصفّى...');
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ kind:'resetSheets', confirm:'تصفية كاملة' }),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'فشلت التصفية');
+    showToast('اتصفت شيتات جوجل شيت بنجاح ✓');
+  }catch(err){
+    showToast('حصلت مشكلة في التصفية، جرب تاني');
+  }
+});
+
+async function getDisabledReps(){
+  try{
+    const res = await window.storage.get('disabled_reps', true);
+    const list = res && res.value ? JSON.parse(res.value) : [];
+    return Array.isArray(list) ? list : [];
+  }catch(e){ return []; }
+}
+
+document.getElementById('btn-add-rep').addEventListener('click', async ()=>{
+  const codeInput = prompt('اكتب كود المندوب الجديد (مثال: TDM45 أو أي اسم تاني مميز):');
+  if(!codeInput) return;
+  const code = codeInput.trim().toUpperCase();
+  if(!code || code==='ADMIN' || code==='ALL'){
+    showToast('الكود ده محجوز، اختار كود تاني');
+    return;
+  }
+  const existingUsers = buildUsers();
+  if(existingUsers.includes(code)){
+    showToast('الكود ده مستخدم بالفعل، اختار كود تاني');
+    return;
+  }
+  const password = prompt(`حط باسورد لـ "${code}" (أرقام أو حروف، المندوب هيستخدمه في الدخول):`);
+  if(!password || !password.trim()){
+    showToast('لازم تحط باسورد');
+    return;
+  }
+  customReps.push({code, password: password.trim()});
+  try{
+    await window.storage.set('custom_reps', JSON.stringify(customReps), true);
+    addRepOptionToAllSelects(code);
+    showToast(`اتضاف "${code}" بنجاح، وهيلاقي نفسه في قايمة الدخول من دلوقتي`);
+  }catch(err){
+    customReps.pop();
+    showToast('حصلت مشكلة في الحفظ، جرب تاني');
+  }
+});
+
+document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
+  const repInput = prompt('اكتب كود المندوب اللي عايز تمسحه بالكامل (مثال: TDM12):');
+  if(!repInput) return;
+  const rep = repInput.trim().toUpperCase();
+  const existingUsers = buildUsers();
+  if(rep==='ADMIN' || !existingUsers.includes(rep)){
+    showToast('الكود ده مش موجود في قايمة المناديب');
+    return;
+  }
+  const warning = `تحذير خطير:\n\nده هيمسح كل بيانات "${rep}" (المحلات + الزونات) نهائيًا، وهيوقف حسابه تمامًا من الدخول تاني على الابليكيشن.\n\nهياخد باك أب قبل المسح تقدر تسترجعه من "استرجاع نسخة"، بس الحساب هيفضل معطّل لحد ما تفعّله تاني من "تفعيل مندوب معطّل".\n\nمتأكد؟`;
+  if(!confirm(warning)) return;
+  const typed = prompt(`اكتب "${rep}" بالظبط عشان تأكد:`);
+  if(typed !== rep){ showToast('اتلغى — النص مطابقش، مفيش حاجة اتمسحت'); return; }
+
+  try{
+    const existingStores = await loadStores(rep);
+    const existingZones = await loadZones(rep);
+    await window.storage.set('backup:'+rep, JSON.stringify({
+      stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
+    }), true);
+    await window.storage.set('stores:'+rep, JSON.stringify([]), true);
+    await window.storage.set('zones:'+rep, JSON.stringify([]), true);
+
+    const disabled = await getDisabledReps();
+    if(!disabled.includes(rep)) disabled.push(rep);
+    await window.storage.set('disabled_reps', JSON.stringify(disabled), true);
+
+    showToast(`اتمسح "${rep}" بالكامل، وحسابه معطّل دلوقتي`);
+  }catch(err){
+    showToast('حصلت مشكلة، جرب تاني');
+  }
+});
+
+document.getElementById('btn-reenable-rep').addEventListener('click', async ()=>{
+  const disabled = await getDisabledReps();
+  if(disabled.length===0){
+    showToast('مفيش حسابات معطّلة دلوقتي');
+    return;
+  }
+  const repInput = prompt(`الحسابات المعطّلة دلوقتي: ${disabled.join('، ')}\n\nاكتب كود المندوب اللي عايز تفعّل حسابه تاني:`);
+  if(!repInput) return;
+  const rep = repInput.trim().toUpperCase();
+  if(!disabled.includes(rep)){
+    showToast('الكود ده مش في قايمة الحسابات المعطّلة');
+    return;
+  }
+  try{
+    const updated = disabled.filter(r=>r!==rep);
+    await window.storage.set('disabled_reps', JSON.stringify(updated), true);
+    showToast(`اتفعّل حساب "${rep}" تاني، ويقدر يدخل من غير محلاته القديمة (لسه ممسوحة، ممكن تسترجعها من "استرجاع نسخة")`);
+  }catch(err){
+    showToast('حصلت مشكلة، جرب تاني');
+  }
 });
 
 document.getElementById('btn-restore-backup').addEventListener('click', async ()=>{
