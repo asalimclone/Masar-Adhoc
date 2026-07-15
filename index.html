@@ -253,10 +253,6 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       <label>الباسورد</label>
       <input type="password" id="login-pass" placeholder="••••">
     </div>
-    <div class="field" id="admin-rep-field" style="display:none;">
-      <label>هتشتغل على بيانات مين؟</label>
-      <select id="admin-rep-select"></select>
-    </div>
     <button class="btn-primary" id="login-btn">دخول</button>
     <div class="login-err" id="login-err"></div>
     <p class="copyright-line">Copyright © Asalim 2026 — مسار أدهوك</p>
@@ -536,6 +532,10 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <h3 id="store-title">إضافة محل</h3>
     <p class="m-sub" id="store-sub">دوس على الخريطة لتحديد الموقع، أو عدّل الإحداثيات يدوي.</p>
 
+    <div class="field" id="store-owner-field" style="display:none;">
+      <label>سجّله تحت مين؟</label>
+      <select id="store-owner-rep-select"></select>
+    </div>
     <div class="field">
       <label>اسم المحل</label>
       <input type="text" id="store-name" placeholder="مثال: بقالة النور">
@@ -746,9 +746,10 @@ function baseFreqForType(type, storeName){
 }
 
 /* يختار أخف يوم حمل (أقل عدد محلات متسكنة فيه حاليًا) عشان يوازن خط السير */
-function pickBalancedDay(){
+function pickBalancedDay(storesOverride){
+  const list = storesOverride || state.stores;
   const loadPerDay = [0,0,0,0,0,0,0];
-  state.stores.forEach(s=>{
+  list.forEach(s=>{
     if(s.status==='valid' && s.assignment && !s.assignment.suspended){
       s.assignment.days.forEach(d=> loadPerDay[d]++);
     }
@@ -759,9 +760,10 @@ function pickBalancedDay(){
 }
 
 /* يختار زوج الأسابيع (1+3 أو 2+4) الأخف حمل حاليًا عشان يوازن خط السير */
-function pickBalancedWeekGroup(){
+function pickBalancedWeekGroup(storesOverride){
+  const list = storesOverride || state.stores;
   let load13 = 0, load24 = 0;
-  state.stores.forEach(s=>{
+  list.forEach(s=>{
     if(s.status==='valid' && s.assignment && !s.assignment.suspended && s.assignment.freq==='biweekly'){
       const v = monthlyVisitsFor(s.assignment);
       if(s.assignment.weekGroup==='13') load13 += v; else load24 += v;
@@ -770,11 +772,11 @@ function pickBalancedWeekGroup(){
   return load13 <= load24 ? '13' : '24';
 }
 
-function buildAutoAssignment(type, storeName, lat, lng){
+function buildAutoAssignment(type, storeName, lat, lng, storesOverride){
   const freq = baseFreqForType(type, storeName);
-  const match = (lat!=null && lng!=null) ? findNearestScheduledDay(lat, lng) : null;
-  const day = match ? match.day : pickBalancedDay();
-  const assignment = { freq, weekGroup: freq==='biweekly' ? pickBalancedWeekGroup() : null, days: [day] };
+  const match = (lat!=null && lng!=null) ? findNearestScheduledDay(lat, lng, storesOverride) : null;
+  const day = match ? match.day : pickBalancedDay(storesOverride);
+  const assignment = { freq, weekGroup: freq==='biweekly' ? pickBalancedWeekGroup(storesOverride) : null, days: [day] };
   return { assignment, matchedZoneId: match ? match.zoneId : null, dayWasAutoMatched: !!match };
 }
 
@@ -791,9 +793,10 @@ function haversineMeters(lat1,lng1,lat2,lng2){
   return 2*R*Math.asin(Math.sqrt(a));
 }
 
-function findNearestScheduledDay(lat, lng){
+function findNearestScheduledDay(lat, lng, storesOverride){
+  const list = storesOverride || state.stores;
   let bestStore = null, bestDist = Infinity;
-  state.stores.forEach(s=>{
+  list.forEach(s=>{
     if(s.status!=='valid' || !s.assignment || s.assignment.suspended) return;
     if(s.assignment.days.length !== 1) return; // محل بأكتر من يوم مش واضح ينسب لأي يوم بعينه، نتجاهله هنا
     const d = haversineMeters(lat, lng, s.lat, s.lng);
@@ -968,35 +971,69 @@ function logAction(actionType, storeCode, storeName, details, store, newStoreDet
   }catch(e){ /* تجاهل، التسجيل مش لازم يعطل حاجة */ }
 }
 
-/* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script (بنفس جودة وحجم الكاميرا الأصلي، من غير أي ضغط) ---------- */
-function fileToBase64Raw(file){
+/* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script ----------
+   بنصغّر الصورة شوية عشان الرفع يبقى سريع ومايفشلش على نت ضعيف، بس بجودة عالية جدًا
+   (2000px + جودة 88%) تكفي جدًا للزوم وتوضيح التفاصيل، وحجمها أصغر بكتير من صورة الكاميرا الخام. */
+function resizeImageToBase64(file, maxDim, quality){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
     reader.onerror = ()=> reject(new Error('فشل قراءة الصورة'));
-    reader.onload = ()=> resolve(reader.result.split(',')[1]); // نرجع الـ base64 بس من غير الـ prefix، من غير أي إعادة رسم أو ضغط
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('فشل تحميل الصورة'));
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality || 0.88);
+        resolve(dataUrl.split(',')[1]); // نرجع الـ base64 بس من غير الـ prefix
+      };
+      img.src = reader.result;
+    };
     reader.readAsDataURL(file);
   });
 }
 
+async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, timeoutMs){
+  const base64 = await resizeImageToBase64(file, 2000, 0.88);
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), timeoutMs || 45000);
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        kind: 'uploadImage',
+        project: currentProject,
+        imageBase64: base64,
+        mimeType: 'image/jpeg',
+        fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.jpg',
+        storeCode: storeCode || '',
+      }),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'فشل رفع الصورة');
+    return data.url;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* بتحاول ترفع الصورة، ولو فشلت (نت ضعيف / تايم آوت) بتعيد المحاولة مرة كمان قبل ما تستسلم */
 async function uploadStorePhoto(file, fileNamePrefix, storeCode){
   if(!file) return '';
-  const base64 = await fileToBase64Raw(file);
-  const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'jpg';
-  const res = await fetch(ACTION_LOG_ENDPOINT, {
-    method: 'POST',
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify({
-      kind: 'uploadImage',
-      project: currentProject,
-      imageBase64: base64,
-      mimeType: file.type || 'image/jpeg',
-      fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.' + ext,
-      storeCode: storeCode || '',
-    }),
-  });
-  const data = await res.json();
-  if(!data.ok) throw new Error(data.error || 'فشل رفع الصورة');
-  return data.url;
+  try{
+    return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, 45000);
+  }catch(err){
+    // محاولة تانية وأخيرة قبل ما نرمي الخطأ فعليًا
+    return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, 60000);
+  }
 }
 
 /* ===================== نظام الاستبيانات ===================== */
@@ -1482,7 +1519,20 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
 
 async function saveStores(){
   try{
-    await window.storage.set(pk('stores:'+state.repCode), JSON.stringify(state.stores), true);
+    if(state.repCode === 'ALL'){
+      // مود الأدمن المدمج: كل محل معاه repCode بتاع صاحبه، فبنجمعهم ونحفظ كل مجموعة عند صاحبها لوحده
+      const byRep = {};
+      state.stores.forEach(s=>{
+        const owner = s.repCode || 'TDM1';
+        if(!byRep[owner]) byRep[owner] = [];
+        byRep[owner].push(s);
+      });
+      for(const rep of Object.keys(byRep)){
+        await window.storage.set(pk('stores:'+rep), JSON.stringify(byRep[rep]), true);
+      }
+    } else {
+      await window.storage.set(pk('stores:'+state.repCode), JSON.stringify(state.stores), true);
+    }
   }catch(e){
     showToast('في مشكلة في حفظ البيانات، حاول تاني');
   }
@@ -1499,7 +1549,19 @@ async function loadZones(repCode){
 }
 async function saveZones(){
   try{
-    await window.storage.set(pk('zones:'+state.repCode), JSON.stringify(state.zones), true);
+    if(state.repCode === 'ALL'){
+      const byRep = {};
+      state.zones.forEach(z=>{
+        const owner = z.repCode || 'TDM1';
+        if(!byRep[owner]) byRep[owner] = [];
+        byRep[owner].push(z);
+      });
+      for(const rep of Object.keys(byRep)){
+        await window.storage.set(pk('zones:'+rep), JSON.stringify(byRep[rep]), true);
+      }
+    } else {
+      await window.storage.set(pk('zones:'+state.repCode), JSON.stringify(state.zones), true);
+    }
   }catch(e){
     showToast('في مشكلة في حفظ بيانات الزونات');
   }
@@ -1507,9 +1569,8 @@ async function saveZones(){
 
 /* ===================== Login flow ===================== */
 const userSelect = document.getElementById('login-user');
-const adminRepField = document.getElementById('admin-rep-field');
-const adminRepSelect = document.getElementById('admin-rep-select');
 const restoreRepSelect = document.getElementById('restore-rep-select');
+const storeOwnerRepSelect = document.getElementById('store-owner-rep-select');
 const projectSelect = document.getElementById('login-project');
 
 let customReps = []; // مناديب زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين، ومنفصلين لكل مشروع
@@ -1521,7 +1582,7 @@ async function loadCustomReps(){
   }catch(e){ customReps = []; }
 }
 function addRepOptionToAllSelects(code){
-  [adminRepSelect, restoreRepSelect].forEach(sel=>{
+  [restoreRepSelect, storeOwnerRepSelect].forEach(sel=>{
     if(!sel) return;
     if([...sel.options].some(o=>o.value===code)) return;
     const opt = document.createElement('option');
@@ -1531,20 +1592,16 @@ function addRepOptionToAllSelects(code){
 }
 
 function resetRepSelectsToBase(){
-  adminRepSelect.innerHTML = '';
   restoreRepSelect.innerHTML = '';
+  storeOwnerRepSelect.innerHTML = '';
   for(let i=1;i<=44;i++){
     const opt1 = document.createElement('option');
     opt1.value = 'TDM'+i; opt1.textContent = 'TDM'+i;
-    adminRepSelect.appendChild(opt1);
+    restoreRepSelect.appendChild(opt1);
     const opt2 = document.createElement('option');
     opt2.value = 'TDM'+i; opt2.textContent = 'TDM'+i;
-    restoreRepSelect.appendChild(opt2);
+    storeOwnerRepSelect.appendChild(opt2);
   }
-  const allOpt = document.createElement('option');
-  allOpt.value = 'ALL'; allOpt.textContent = 'الكل (نظرة عامة + رفع تحديث)';
-  adminRepSelect.insertBefore(allOpt, adminRepSelect.firstChild);
-  adminRepSelect.value = 'ALL';
 }
 
 async function refreshProjectDependentUI(){
@@ -1583,10 +1640,6 @@ projectSelect.addEventListener('change', async ()=>{
   await refreshProjectDependentUI();
 });
 
-userSelect.addEventListener('input', ()=>{
-  adminRepField.style.display = userSelect.value.trim().toLowerCase() === 'admin' ? 'block' : 'none';
-});
-
 document.getElementById('login-btn').addEventListener('click', async ()=>{
   currentProject = projectSelect.value; // تأكيد نهائي إن المشروع الصح متحدد قبل أي حفظ
   localStorage.setItem('masar_last_project', currentProject);
@@ -1614,11 +1667,14 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
     }catch(e){ /* لو فشل التحقق، منكملش نمنع دخول شرعي بسبب مشكلة شبكة */ }
   }
   if(user === 'admin'){
+    // الأدمن دلوقتي بيشوف ويعدّل على بيانات كل المناديب مع بعض في نفس المشروع، من غير ما يختار مندوب بعينه
     state.isAdmin = true;
-    state.repCode = adminRepSelect.value;
+    state.repCode = 'ALL';
+    state.readOnly = false;
   } else {
     state.isAdmin = false;
     state.repCode = user;
+    state.readOnly = false;
 
     // تنبيه: لو الجهاز ده كان متسجل عليه مندوب مختلف قبل كده
     try{
@@ -1630,16 +1686,16 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
       localStorage.setItem(DEVICE_KEY, user);
     }catch(e){ /* تجاهل */ }
   }
-  state.readOnly = (state.repCode === 'ALL');
 
   document.getElementById('login-btn').disabled = true;
-  document.getElementById('login-btn').textContent = state.readOnly ? 'بتجمع بيانات كل المندوبين...' : 'جاري الدخول...';
+  document.getElementById('login-btn').textContent = state.isAdmin ? 'بتجمع بيانات كل المناديب...' : 'جاري الدخول...';
 
-  if(state.readOnly){
+  if(state.isAdmin){
     state.stores = [];
     state.zones = [];
     const allCodes = [];
     for(let i=1;i<=44;i++) allCodes.push('TDM'+i);
+    customReps.forEach(r=>{ if(!allCodes.includes(r.code)) allCodes.push(r.code); });
     for(const code of allCodes){
       const s = await loadStores(code);
       s.forEach(st => state.stores.push(Object.assign({}, st, {repCode: code})));
@@ -1657,13 +1713,12 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('current-user-label').textContent = state.isAdmin
-    ? (state.readOnly ? 'admin — نظرة عامة على الكل' : ('admin — '+state.repCode))
+    ? 'admin — كل المناديب'
     : state.repCode;
 
-  const adminOnlyEditItems = ['btn-import','btn-bulk-zone']; // need a specific rep context, not the "ALL" overview
-  const showAdminEdit = state.isAdmin && !state.readOnly;
-  adminOnlyEditItems.forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
-  document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none'; // works in ALL overview too
+  const showAdminEdit = state.isAdmin;
+  ['btn-import','btn-bulk-zone'].forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
+  document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-manage-surveys').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-create-project').style.display = state.isAdmin ? 'flex' : 'none';
   document.getElementById('btn-full-reset').style.display = state.isAdmin ? 'flex' : 'none';
@@ -1682,7 +1737,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
 
   initMapOnce();
   renderMarkers();
-  if(!state.readOnly) setTimeout(maybeRemindMonthlyMinimum, 1200);
+  if(state.repCode!=='ALL') setTimeout(maybeRemindMonthlyMinimum, 1200);
 });
 
 /* منطق تسجيل الخروج بقى تحت في قسم "Exit confirmation with countdown" مع مودال التأكيد والعداد */
@@ -2196,21 +2251,6 @@ function zoneNameOf(store){
 
 function buildPopupHTML(store){
   const st = STATUS[store.status];
-  if(state.readOnly){
-    const zn = zoneNameOf(store);
-    return `
-      <div class="pop">
-        <p class="pop-title">${escapeHtml(store.name)}</p>
-        <p class="pop-code">كود ${escapeHtml(String(store.code))} — ${escapeHtml(store.repCode||'')}</p>
-        <span class="pop-status" style="background:${st.color};color:#fff;">${st.label}</span>
-        <p class="pop-line"><b>خط السير: </b>${assignmentSummary(store.assignment)}</p>
-        <p class="pop-line"><b>الزون: </b>${zn ? escapeHtml(zn) : 'بدون زون'}</p>
-        <div class="pop-actions">
-          <button class="pop-btn dir" onclick="goToStore('${store.id}')">🧭 روح للمحل ده</button>
-        </div>
-        <div class="pop-dir" id="dir-${store.id}"></div>
-      </div>`;
-  }
   const isProblem = store.status !== 'valid';
   let actions = '';
   if(isProblem){
@@ -2251,7 +2291,7 @@ function buildPopupHTML(store){
   return `
     <div class="pop">
       <p class="pop-title">${escapeHtml(store.name)}</p>
-      <p class="pop-code">كود ${escapeHtml(String(store.code))}</p>
+      <p class="pop-code">كود ${escapeHtml(String(store.code))}${state.repCode==='ALL' && store.repCode ? ' — '+escapeHtml(store.repCode) : ''}</p>
       <select class="pop-select" onchange="changeStatus('${store.id}', this.value)">
         ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${store.status===k?'selected':''}>${v.label}</option>`).join('')}
       </select>
@@ -2312,7 +2352,7 @@ function updateStats(){
   document.getElementById('stat-unassigned').textContent = unassigned;
   document.getElementById('stat-problem').textContent = problem;
 
-  if(!state.readOnly){
+  if(state.repCode!=='ALL'){
     const monthly = typeof totalMonthlyVisits === 'function' ? totalMonthlyVisits(null) : 0;
     const el = document.getElementById('stat-monthly');
     if(el){
@@ -2332,7 +2372,7 @@ document.getElementById('search-box').addEventListener('input', renderMarkers);
 
 /* تذكير دوري لو المندوب لسه تحت الحد الأدنى المطلوب من الزيارات الشهرية */
 function maybeRemindMonthlyMinimum(){
-  if(state.readOnly || !state.repCode) return;
+  if(state.repCode==='ALL' || !state.repCode) return;
   const monthly = totalMonthlyVisits(null);
   if(monthly < MONTHLY_VISIT_MIN){
     showToast(monthlyCapMessage(monthly));
@@ -2350,7 +2390,7 @@ async function loadCurrentWeek(repCode){
   return '1';
 }
 async function saveCurrentWeek(){
-  if(state.readOnly) return;
+  if(state.repCode==='ALL') return;
   try{ await window.storage.set(pk('currentWeek:'+state.repCode), weekSelect.value, true); }catch(e){}
 }
 weekSelect.addEventListener('change', saveCurrentWeek);
@@ -2456,7 +2496,7 @@ function renderSelectedSchedule(){
       return;
     }
 
-    if(state.readOnly){
+    if(state.repCode==='ALL'){
       const byRep = {};
       due.forEach(s=>{ (byRep[s.repCode]=byRep[s.repCode]||[]).push(s); });
       listHtml += Object.entries(byRep).map(([rep,list])=>`
@@ -2554,7 +2594,7 @@ document.getElementById('btn-zone-route').addEventListener('click', ()=>{
   subEl.textContent = `مسار زون "${label}" — ${zoneStores.length} محل`;
   const color = zone.color;
 
-  if(state.readOnly){
+  if(state.repCode==='ALL'){
     const byRep = {};
     zoneStores.forEach(s=>{ (byRep[s.repCode]=byRep[s.repCode]||[]).push(s); });
     listEl.innerHTML = Object.entries(byRep).map(([rep,list])=>`
@@ -2961,8 +3001,9 @@ function monthlyVisitsFor(assignment){
   return assignment.days.length * (assignment.freq==='weekly' ? 4 : 2);
 }
 // Active total excludes suspended (waiting-list) assignments — they don't count against the cap.
-function totalMonthlyVisits(excludeStoreId){
-  return state.stores
+function totalMonthlyVisits(excludeStoreId, storesOverride){
+  const list = storesOverride || state.stores;
+  return list
     .filter(s => s.status==='valid' && s.assignment && !s.assignment.suspended && s.id!==excludeStoreId)
     .reduce((sum,s)=> sum + monthlyVisitsFor(s.assignment), 0);
 }
@@ -3174,6 +3215,15 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
   document.getElementById('store-lng').readOnly = !state.isAdmin;
   document.getElementById('btn-pick-loc').style.display = state.isAdmin ? 'block' : 'none';
 
+  document.getElementById('store-owner-field').style.display = state.isAdmin ? 'block' : 'none';
+  if(state.isAdmin && storeOwnerRepSelect.options.length>0){
+    // لو بديل لمحل موجود، الافتراضي إنه يتسجل عند نفس صاحب المحل القديم
+    if(replacingFor){
+      const oldStore = state.stores.find(s=>s.id===replacingFor);
+      if(oldStore && oldStore.repCode) storeOwnerRepSelect.value = oldStore.repCode;
+    }
+  }
+
   overlayStore.classList.add('show');
 
   const autoCode = await getNextAutoCode(state.repCode);
@@ -3328,9 +3378,12 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     }
   }
 
-  const {assignment, matchedZoneId, dayWasAutoMatched} = buildAutoAssignment(type, name, lat, lng);
+  const ownerRep = state.isAdmin ? (storeOwnerRepSelect.value || 'TDM1') : state.repCode;
+  const ownerStores = state.repCode==='ALL' ? state.stores.filter(s=>s.repCode===ownerRep) : state.stores;
+
+  const {assignment, matchedZoneId, dayWasAutoMatched} = buildAutoAssignment(type, name, lat, lng, ownerStores);
   const newVisits = monthlyVisitsFor(assignment);
-  const otherVisits = totalMonthlyVisits(null);
+  const otherVisits = totalMonthlyVisits(null, ownerStores);
   const projectedTotal = otherVisits + newVisits;
   assignment.suspended = projectedTotal > MONTHLY_VISIT_MAX;
 
@@ -3360,21 +3413,21 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   const newStore = {
     id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     name, code, lat, lng, status:'valid', storeType: type, gasStationChain: chain || undefined,
-    assignment, zoneId: matchedZoneId, origin:'new',
+    assignment, zoneId: matchedZoneId, origin:'new', repCode: ownerRep,
     strongStore, jhinaFridge, energyDrinks, addReason, photoUrls,
   };
   state.stores.push(newStore);
   saveStores();
   renderMarkers();
   overlayStore.classList.remove('show');
-  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}`, newStore);
+  logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}${state.isAdmin?' — سُجّل تحت '+ownerRep:''}`, newStore);
   // بيانات الـ checklist والصور بتتسجل كرد على استبيان "إضافة عميل جديد" المدمج، عشان تقدر ترجعله تعدله بعدين من غير قيد اللوكيشن
   fetch(ACTION_LOG_ENDPOINT, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({
       kind:'submitSurveyResponse',
       project: currentProject,
-      repCode: state.repCode,
+      repCode: ownerRep,
       storeCode: code,
       storeName: name,
       surveyId: BUILT_IN_ADD_STORE_SURVEY_ID,
@@ -3675,11 +3728,11 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     await window.storage.set(pk('zones:'+rep), JSON.stringify(backup.zones||[]), true);
     hint.textContent = `تم استرجاع بيانات ${rep} بنجاح.`;
 
-    if(!state.readOnly && state.repCode===rep){
+    if(state.repCode!=='ALL' && state.repCode===rep){
       state.stores = await loadStores(rep);
       state.zones = await loadZones(rep);
       renderMarkers();
-    } else if(state.readOnly){
+    } else if(state.repCode==='ALL'){
       state.stores = [];
       for(let i=1;i<=44;i++){
         const code = 'TDM'+i;
@@ -3838,7 +3891,7 @@ document.getElementById('master-file-input').addEventListener('change', async (e
     (outOfBoundsCount>0 ? ` تنبيه: ${outOfBoundsCount} محل بإحداثيات غريبة برا حدود مصر تقريبًا، راجعهم.` : '');
   doneActions.style.display = 'flex';
 
-  if(state.readOnly){
+  if(state.repCode==='ALL'){
     state.stores = [];
     for(let i=1;i<=44;i++){
       const code = 'TDM'+i;
@@ -3919,7 +3972,7 @@ async function runBackupExport(isAuto){
   let payload;
   const dateStr = new Date().toISOString().slice(0,10);
   let filename;
-  if(state.readOnly){
+  if(state.repCode==='ALL'){
     const allData = {};
     for(let i=1;i<=44;i++){
       const code = 'TDM'+i;
@@ -4035,7 +4088,7 @@ document.getElementById('backup-import-input').addEventListener('change', async 
         await window.storage.set(pk('zones:'+rep), JSON.stringify(d.zones||[]), true);
       }
       showToast('اترجعت النسخة الشاملة لكل المناديب بنجاح');
-      if(state.readOnly){
+      if(state.repCode==='ALL'){
         state.stores = [];
         for(let i=1;i<=44;i++){
           const code = 'TDM'+i;
