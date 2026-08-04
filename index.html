@@ -51,6 +51,8 @@ window.__SEED_DATA__ = {"TDM12":[
   --red-tint:#FBE6E2;
   --green:#2E9E5B;
   --green-tint:#E4F5EA;
+  --blue:#2D6CDF;
+  --blue-tint:#E4EDFB;
   --radius:14px;
   --shadow:0 10px 30px -12px rgba(24,24,24,.22);
 }
@@ -126,6 +128,15 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 }
 .dd-item:hover{background:var(--bg);}
 .dd-divider{height:1px;background:var(--line);margin:5px 4px;}
+.dd-folder-toggle{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;border:none;background:none;
+  color:#000;font-size:13.5px;font-weight:800;font-family:'Tajawal',sans-serif;
+  border-radius:8px;text-align:right;cursor:pointer;width:100%;
+}
+.dd-folder-toggle:hover{background:var(--bg);}
+.dd-folder-arrow{font-size:11px;color:#000;}
+.dd-folder-items{display:none;flex-direction:column;gap:2px;}
+.dd-sub{padding-right:26px;}
 
 .statbar{
   display:flex;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);
@@ -145,14 +156,6 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 
 .main-area{flex:1;position:relative;min-height:0;}
 .select-rect{position:absolute;border:2px dashed var(--primary);background:rgba(225,44,99,.12);pointer-events:none;z-index:900;display:none;}
-#bulk-zone-panel{
-  display:none;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
-  background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:12px 16px;
-  z-index:950;align-items:center;gap:10px;flex-wrap:wrap;max-width:92vw;
-}
-#bulk-zone-panel span{font-weight:800;font-size:13px;color:var(--primary-dark);white-space:nowrap;}
-#bulk-zone-panel select{padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:13px;}
-#bulk-zone-panel button{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;}
 #map{position:absolute;inset:0;}
 
 .leaflet-popup-content-wrapper{border-radius:14px;padding:0;}
@@ -274,29 +277,40 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     </div>
     <div class="user-chip"><span class="dot"></span><span id="current-user-label"></span></div>
     <div class="topbar-actions">
-      <button class="tb-btn" id="btn-today"><span>📅</span><span class="label">جدول الزيارات</span></button>
       <button class="tb-btn" id="btn-add-mode"><span>＋</span><span class="label">إضافة محل</span></button>
-      <button class="tb-btn" id="btn-locate"><span>📍</span><span class="label">موقعي</span></button>
+      <button class="tb-btn" id="btn-locate"><span><svg width="15" height="20" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-3px;"><path d="M17 0C7.6 0 0 7.6 0 17c0 12.5 17 29 17 29s17-16.5 17-29C34 7.6 26.4 0 17 0z" fill="#7C3AED"/><circle cx="17" cy="17" r="7" fill="#fff"/></svg></span><span class="label">موقعي</span></button>
       <div class="menu-wrap">
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
         <div class="dropdown-menu" id="dropdown-menu">
-          <button class="dd-item" id="btn-backup-export"><span>💾</span> نسخة احتياطية</button>
-          <button class="dd-item" id="btn-backup-import"><span>📂</span> استيراد نسخة</button>
           <button class="dd-item" id="btn-export"><span>⇩</span> تصدير إكسل</button>
-          <button class="dd-item" id="btn-zones"><span>▦</span> الزونات</button>
+          <button class="dd-item" id="btn-zones"><span>▦</span> المربعات</button>
           <div class="dd-divider" id="dd-admin-divider" style="display:none;"></div>
-          <button class="dd-item admin-only" id="btn-import" style="display:none;"><span>⇪</span> استيراد إكسل</button>
-          <button class="dd-item admin-only" id="btn-bulk-zone" style="display:none;"><span>▭</span> تحديد جماعي للزون</button>
-          <button class="dd-item admin-only" id="btn-swap-days" style="display:none;"><span>🔁</span> تبديل يومين بالكامل</button>
-          <button class="dd-item admin-only" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
           <button class="dd-item admin-only" id="btn-manage-surveys" style="display:none;"><span>📋</span> إدارة الاستبيانات</button>
-          <button class="dd-item admin-only" id="btn-create-project" style="display:none;"><span>🗂️</span> إنشاء مشروع جديد</button>
-          <button class="dd-item admin-only" id="btn-full-reset" style="display:none;color:var(--red);"><span>🗑️</span> تصفية كاملة (كل المناديب)</button>
+
+          <div class="dd-divider"></div>
+          <button class="dd-folder-toggle" id="dd-folder-projects-toggle" type="button">
+            <span class="dd-folder-arrow">▸</span> 📁 إدارة المشاريع
+          </button>
+          <div class="dd-folder-items" id="dd-folder-projects-items" style="display:none;">
+            <button class="dd-item dd-sub" id="btn-backup-export"><span>💾</span> نسخة احتياطية</button>
+            <button class="dd-item dd-sub" id="btn-backup-import"><span>📂</span> استيراد نسخة</button>
+            <button class="dd-item admin-only dd-sub" id="btn-create-project" style="display:none;"><span>🗂️</span> إنشاء مشروع جديد</button>
+            <button class="dd-item admin-only dd-sub" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
+            <button class="dd-item admin-only dd-sub" id="btn-import" style="display:none;"><span>⇪</span> استيراد إكسل</button>
+          </div>
+
+          <div class="dd-divider admin-only" id="dd-folder-reps-divider" style="display:none;"></div>
+          <button class="dd-folder-toggle admin-only" id="dd-folder-reps-toggle" type="button" style="display:none;">
+            <span class="dd-folder-arrow">▸</span> 📁 إدارة المناديب
+          </button>
+          <div class="dd-folder-items admin-only" id="dd-folder-reps-items" style="display:none;">
+            <button class="dd-item dd-sub" id="btn-add-rep"><span>➕</span> إضافة مندوب جديد</button>
+            <button class="dd-item dd-sub" id="btn-bulk-add-reps"><span>📥</span> رفع مناديب بالإكسل (Bulk)</button>
+            <button class="dd-item dd-sub" id="btn-delete-rep" style="color:var(--red);"><span>🚫</span> حذف مندوب بالكامل</button>
+            <button class="dd-item dd-sub" id="btn-reenable-rep"><span>✅</span> تفعيل مندوب معطّل</button>
+            <button class="dd-item dd-sub" id="btn-full-reset" style="color:var(--red);"><span>🗑️</span> تصفية كاملة (كل المناديب)</button>
+          </div>
           <button class="dd-item admin-only" id="btn-reset-sheets" style="display:none;color:var(--red);"><span>🗑️</span> تصفية شيتات جوجل شيت (السجلات)</button>
-          <button class="dd-item admin-only" id="btn-add-rep" style="display:none;"><span>➕</span> إضافة مندوب جديد</button>
-          <button class="dd-item admin-only" id="btn-bulk-add-reps" style="display:none;"><span>📥</span> رفع مناديب بالإكسل (Bulk)</button>
-          <button class="dd-item admin-only" id="btn-delete-rep" style="display:none;color:var(--red);"><span>🚫</span> حذف مندوب بالكامل</button>
-          <button class="dd-item admin-only" id="btn-reenable-rep" style="display:none;"><span>✅</span> تفعيل مندوب معطّل</button>
           <div class="dd-divider"></div>
           <button class="dd-item" id="btn-logout"><span>⏻</span> خروج</button>
         </div>
@@ -305,20 +319,30 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   </header>
 
   <div class="statbar">
-    <div class="chip"><span class="sw" style="background:var(--green)"></span>متسكن <b id="stat-assigned">0</b></div>
-    <div class="chip"><span class="sw" style="background:var(--amber)"></span>محتاج تسكين <b id="stat-unassigned">0</b></div>
-    <div class="chip"><span class="sw" style="background:var(--red)"></span>محتاج بديل <b id="stat-problem">0</b></div>
+    <div class="chip"><span class="sw" style="background:var(--red)"></span>زيارات غير منجزة <b id="stat-not-done">0</b></div>
+    <div class="chip"><span class="sw" style="background:var(--blue)"></span>زيارات قيد التنفيذ <b id="stat-in-progress">0</b></div>
+    <div class="chip"><span class="sw" style="background:var(--green)"></span>زيارات منجزة <b id="stat-done">0</b></div>
     <div class="chip">الإجمالي <b id="stat-total">0</b></div>
     <div class="chip" id="stat-monthly-chip">زيارات الشهر <b id="stat-monthly">0</b> / 360-400</div>
     <label class="chip" style="cursor:pointer;">
       <input type="checkbox" id="toggle-zones" checked style="margin:0;">
-      إظهار الزونات
+      إظهار المربعات
     </label>
-    <label class="chip" style="cursor:pointer;">
-      <input type="checkbox" id="toggle-all-stores" style="margin:0;">
-      إظهار كل المحلات
+    <div class="menu-wrap">
+      <button class="chip" id="btn-zone-filter" style="cursor:pointer;border:none;">🗂️ عرض مربعات: <b id="zone-filter-label">الكل</b></button>
+      <div class="dropdown-menu" id="zone-filter-panel" style="min-width:220px;max-height:280px;overflow-y:auto;">
+        <div style="display:flex;gap:6px;padding:6px 8px;">
+          <button class="btn-ghost" id="zone-filter-select-all" style="flex:1;padding:6px;font-size:12px;">تحديد الكل</button>
+          <button class="btn-ghost" id="zone-filter-clear" style="flex:1;padding:6px;font-size:12px;">إلغاء التحديد</button>
+        </div>
+        <div id="zone-filter-options"></div>
+      </div>
+    </div>
+    <label class="chip admin-only" id="toggle-live-track-label" style="cursor:pointer;display:none;">
+      <input type="checkbox" id="toggle-live-track" style="margin:0;">
+      🟢 متابعة لحظية للمناديب
     </label>
-    <label class="chip" style="gap:5px;">
+    <label class="chip" style="gap:5px;display:none;">
       الأسبوع الحالي:
       <select id="current-week-select" style="border:none;background:transparent;font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:12.5px;">
         <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
@@ -331,12 +355,6 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 
   <div class="main-area">
     <div id="map"></div>
-    <div id="bulk-zone-panel">
-      <span id="bulk-zone-count"></span>
-      <select id="bulk-zone-select"></select>
-      <button class="btn-solid" id="bulk-zone-confirm">تأكيد</button>
-      <button class="btn-ghost" id="bulk-zone-cancel">إلغاء</button>
-    </div>
   </div>
 </div>
 
@@ -423,42 +441,6 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   </div>
 </div>
 
-<!-- ============ Today's Schedule Modal ============ -->
-<div class="overlay" id="overlay-today">
-  <div class="modal" style="max-width:480px;">
-    <h3>جدول الزيارات</h3>
-    <div class="field">
-      <label>الأسبوع</label>
-      <div class="radio-row" id="today-week-row">
-        <label class="radio-pill" data-val="1">1</label>
-        <label class="radio-pill" data-val="2">2</label>
-        <label class="radio-pill" data-val="3">3</label>
-        <label class="radio-pill" data-val="4">4</label>
-      </div>
-    </div>
-    <div class="field">
-      <label>اختار يوم أو أكتر عشان تشوف مساره</label>
-      <div class="days-grid" id="today-days-grid"></div>
-    </div>
-    <p class="m-sub" id="today-sub">اختار يوم من فوق عشان تشوف المحلات والمسار بتاعه.</p>
-    <div id="today-list" style="display:flex;flex-direction:column;gap:8px;max-height:32vh;overflow-y:auto;"></div>
-
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">أو ارسم مسار زون كامل (بغض النظر عن اليوم)</label>
-      <div style="display:flex;gap:8px;">
-        <select id="today-zone-select" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--line);"></select>
-        <button class="btn-ghost" id="btn-zone-route" style="flex:none;padding:9px 16px;">ارسم المسار</button>
-      </div>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn-ghost" id="today-clear-route" style="width:100%;">امسح كل المسارات</button>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-solid" id="today-close" style="width:100%;">قفل</button>
-    </div>
-  </div>
-</div>
 
 <!-- ============ Assign Modal ============ -->
 <div class="overlay" id="overlay-assign">
@@ -494,40 +476,14 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   </div>
 </div>
 
-<!-- ============ Swap Days Modal ============ -->
-<div class="overlay" id="overlay-swap-days">
-  <div class="modal">
-    <h3>تبديل يومين بالكامل</h3>
-    <p class="m-sub">هيتم نقل كل عملاء اليوم الأول لليوم التاني، وكل عملاء اليوم التاني لليوم الأول. مش شرط يكون العدد متساوي.</p>
-
-    <div class="field">
-      <label>اليوم الأول</label>
-      <select id="swap-day-a" class="pop-select"></select>
-      <p class="m-sub" id="swap-day-a-count"></p>
-    </div>
-
-    <div class="field">
-      <label>اليوم التاني</label>
-      <select id="swap-day-b" class="pop-select"></select>
-      <p class="m-sub" id="swap-day-b-count"></p>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn-ghost" id="swap-days-cancel">إلغاء</button>
-      <button class="btn-solid" id="swap-days-confirm">تبديل الأيام</button>
-    </div>
-  </div>
-</div>
 
 <!-- ============ Exit Confirm Modal ============ -->
 <div class="overlay" id="overlay-exit-confirm">
   <div class="modal">
     <h3>⚠️ متأكد إنك عاوز تخرج؟</h3>
-    <p class="m-sub">تأكد إنك عملت نسخة احتياطية قبل ما تخرج، عشان لو حصل أي مشكلة يكون عندك نسخة من بياناتك.</p>
-    <button class="btn-solid" id="exit-backup-now" style="width:100%;margin-top:6px;background:var(--primary-dark, #1a56b3);">📦 تصدير نسخة احتياطية الآن</button>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn-ghost" id="exit-cancel">لأ، رجوع</button>
-      <button class="btn-solid" id="exit-confirm" disabled style="opacity:.5;">استنى... (<span id="exit-countdown">5</span>)</button>
+      <button class="btn-solid" id="exit-confirm">أيوه، خروج</button>
     </div>
   </div>
 </div>
@@ -628,17 +584,24 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 <!-- ============ Zones Modal ============ -->
 <div class="overlay" id="overlay-zones">
   <div class="modal" style="max-width:460px;">
-    <h3>تقسيم المحلات لزونات</h3>
-    <p class="m-sub">قسّم محلاتك لمجموعات جغرافية (15-17 محل لكل زون) عشان تسهّل تنظيم الشغل.</p>
+    <h3>تقسيم المحلات لمربعات</h3>
+    <p class="m-sub">قسّم محلاتك لمجموعات جغرافية (15-17 محل لكل مربع) عشان تسهّل تنظيم الشغل.</p>
 
     <div class="modal-actions" style="margin-top:0;">
       <button class="btn-solid" id="btn-smart-split">تقسيم ذكي تلقائي</button>
-      <button class="btn-ghost" id="btn-add-zone">+ زون يدوي جديد</button>
+      <button class="btn-ghost" id="btn-add-zone">+ مربع يدوي جديد</button>
     </div>
-    <p class="hint">التقسيم الذكي بيرتب المحلات القريبة من بعضها في نفس الزون تلقائي. بعد كده تقدر تنقل أي محل لزون تاني يدوي من الـ popup بتاعه على الخريطة.</p>
+    <p class="hint">التقسيم الذكي بيرتب المحلات القريبة من بعضها في نفس المربع تلقائي. بعد كده تقدر تنقل أي محل لمربع تاني يدوي من الـ popup بتاعه على الخريطة.</p>
 
     <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
-      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">زون من مسار يوم معين</label>
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">📥 استيراد حدود مربعات حقيقية (GeoJSON)</label>
+      <input type="file" id="zone-geojson-file" accept=".geojson,.json" style="display:none;">
+      <button class="btn-ghost" id="btn-import-zone-geojson" style="width:100%;">اختار ملف GeoJSON للمربعات</button>
+      <p class="hint">لو عندك حدود مربعات جاهزة من ArcMap أو أي نظام GIS (لازم تكون بصيغة GeoJSON)، هترسم شكل المربع بالظبط زي الحدود الحقيقية (مش تقريبي)، وتربط المحلات اللي جواها تلقائي. الملف لازم يكون فيه خاصية زي "ZONE_NAME" أو "conc" أو "name" لاسم كل مربع.</p>
+    </div>
+
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">مربع من مسار يوم معين</label>
       <div style="display:flex;gap:8px;margin-bottom:8px;">
         <select id="route-zone-day" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--line);"></select>
         <select id="route-zone-week" style="width:80px;padding:9px;border-radius:9px;border:1.5px solid var(--line);">
@@ -646,14 +609,14 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
           <option value="3">أسبوع 3</option><option value="4">أسبوع 4</option>
         </select>
       </div>
-      <button class="btn-ghost" id="btn-route-zone" style="width:100%;">إنشاء زون من هذا المسار</button>
-      <p class="hint">بيعمل زون يضم بالظبط المحلات المتسكنة في اليوم والأسبوع اللي تختارهم — يعني لو مسار السبت في الأسبوع الأول 15 محل، هيتحول لزون واحد اسمه بنفس التسمية.</p>
+      <button class="btn-ghost" id="btn-route-zone" style="width:100%;">إنشاء مربع من هذا المسار</button>
+      <p class="hint">بيعمل مربع يضم بالظبط المحلات المتسكنة في اليوم والأسبوع اللي تختارهم — يعني لو مسار السبت في الأسبوع الأول 15 محل، هيتحول لمربع واحد اسمه بنفس التسمية.</p>
     </div>
 
     <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
       <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;">
         <input type="checkbox" id="zone-select-all">
-        تحديد كل الزونات
+        تحديد كل المربعات
       </label>
       <button class="btn-ghost" id="btn-draw-selected-routes" style="padding:8px 14px;font-size:12.5px;">ارسم مسارات المحدد</button>
     </div>
@@ -780,15 +743,48 @@ function pickBalancedWeekGroup(storesOverride){
 
 function buildAutoAssignment(type, storeName, lat, lng, storesOverride){
   const freq = baseFreqForType(type, storeName);
+  // 1) أولوية للمربعات اللي ليها حدود حقيقية مستوردة من الـ GIS — لو النقطة جوه واحد منهم فعليًا
+  const polyZoneId = (lat!=null && lng!=null) ? findZoneIdByPolygon(lat, lng) : null;
   const match = (lat!=null && lng!=null) ? findNearestScheduledDay(lat, lng, storesOverride) : null;
   const day = match ? match.day : pickBalancedDay(storesOverride);
   const assignment = { freq, weekGroup: freq==='biweekly' ? pickBalancedWeekGroup(storesOverride) : null, days: [day] };
-  return { assignment, matchedZoneId: match ? match.zoneId : null, dayWasAutoMatched: !!match };
+  return { assignment, matchedZoneId: polyZoneId || (match ? match.zoneId : null), dayWasAutoMatched: !!match };
 }
 
-/* لو المحل الجديد قريب فعليًا من محلات متسكنة فعلاً (سواء كانت جوه زون رسمي اتعمل أو لأ)،
+/* لو نقطة (lat,lng) وقعت فعليًا جوه حدود مربع حقيقي (مستورد من ملف GeoJSON/GIS)، نرجّع الـ zoneId بتاعه.
+   بنستخدم خوارزمية Ray Casting الكلاسيكية لتحديد لو نقطة جوه Polygon أو لأ. */
+function pointInPolygon(lat, lng, ring){
+  let inside = false;
+  for(let i=0, j=ring.length-1; i<ring.length; j=i++){
+    const yi = ring[i][0], xi = ring[i][1];
+    const yj = ring[j][0], xj = ring[j][1];
+    const intersect = ((yi>lat) !== (yj>lat)) && (lng < (xj-xi)*(lat-yi)/(yj-yi) + xi);
+    if(intersect) inside = !inside;
+  }
+  return inside;
+}
+/* مربع ممكن يتكوّن من أكتر من قطعة منفصلة جغرافيًا (MultiPolygon) — زي مربعات ArcMap الحقيقية.
+   zone.rings هي مصفوفة من الحلقات (كل حلقة = مضلع واحد)؛ zone.polygon القديم (حلقة واحدة بس)
+   لسه بيشتغل عادي مع المربعات اللي اتعملت قبل دعم الـ MultiPolygon. */
+function zoneRings(zone){
+  if(zone.rings && zone.rings.length) return zone.rings;
+  if(zone.polygon && zone.polygon.length>=3) return [zone.polygon];
+  return null;
+}
+function pointInZoneRings(lat, lng, rings){
+  return rings.some(ring => ring.length>=3 && pointInPolygon(lat, lng, ring));
+}
+function findZoneIdByPolygon(lat, lng){
+  for(const zone of state.zones){
+    const rings = zoneRings(zone);
+    if(rings && pointInZoneRings(lat, lng, rings)) return zone.id;
+  }
+  return null;
+}
+
+/* لو المحل الجديد قريب فعليًا من محلات متسكنة فعلاً (سواء كانت جوه مربع رسمي اتعمل أو لأ)،
    بناخد يوم أقرب محل متسكن ليه بدل موازنة الحمل العادية. بنحسبها بأقرب محل حقيقي (مش حدود
-   تقريبية أو زون لازم يتعمل الأول) عشان تشتغل فورًا من غير أي خطوة إعداد زيادة. */
+   تقريبية أو مربع لازم يتعمل الأول) عشان تشتغل فورًا من غير أي خطوة إعداد زيادة. */
 const DAY_ZONE_MAX_DISTANCE_M = 2500; // لو أبعد من كده عن أي محل متسكن، منعتبروش تابع لمنطقة يوم معين
 
 function haversineMeters(lat1,lng1,lat2,lng2){
@@ -1005,6 +1001,18 @@ function resizeImageToBase64(file, maxDim, quality){
   });
 }
 
+/* ---------- تسمية موحّدة لصور المحل: {اسم السؤال}_{المنطقة_رقم المربع}_{كود المحل} ----------
+   بيفترض إن اسم المربع (المربع) اتسمى بصيغة "المنطقة_رقم المربع" (زي "المعادي_3")، وده بيبقى
+   جزء من اسم الملف اللي بيتخزن على درايف عشان يبقى واضح وسهل التتبع. */
+function sanitizeForFileName(s){
+  return String(s||'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'_').trim();
+}
+function blockLabelFromZoneId(zoneId, code){
+  const zone = zoneId ? state.zones.find(z=>z.id===zoneId) : null;
+  const areaBlock = zone ? zone.name : 'بدون_مربع';
+  return sanitizeForFileName(areaBlock) + '_' + sanitizeForFileName(code);
+}
+
 async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, timeoutMs){
   const base64 = await resizeImageToBase64(file, 2000, 0.88);
   const controller = new AbortController();
@@ -1052,6 +1060,7 @@ const SURVEY_QUESTION_TYPES = [
   {key:'date', label:'تاريخ'},
   {key:'photo', label:'صورة واحدة'},
   {key:'multiphoto', label:'صور متعددة (بعدد حر)'},
+  {key:'final_status', label:'🏁 هل هذه الحالة النهائية؟ (بيتحكم في لون النقطة على الخريطة)'},
 ];
 const BUILT_IN_ADD_STORE_SURVEY_ID = 'built_in_add_store';
 
@@ -1125,6 +1134,11 @@ window.openSurveyBuilder = function(surveyId){
   const existing = surveyId ? state.surveys.find(s=>s.id===surveyId) : null;
   state.surveyBuilderEditingId = existing ? existing.id : null;
   state.surveyBuilderQuestions = existing ? JSON.parse(JSON.stringify(existing.questions||[])) : [];
+  // توافق مع استبيانات قديمة كان فيها شرط ظهور واحد بس (object)، بنحوله لمصفوفة شروط
+  state.surveyBuilderQuestions.forEach(q=>{
+    if(q.dependsOn && !Array.isArray(q.dependsOn)) q.dependsOn = [q.dependsOn];
+    if(!q.dependsOn) q.dependsOn = [];
+  });
   document.getElementById('survey-builder-title').textContent = existing ? 'تعديل استبيان' : 'استبيان جديد';
   document.getElementById('survey-name-input').value = existing ? existing.name : '';
   renderSurveyBuilderQuestions();
@@ -1136,7 +1150,7 @@ document.getElementById('survey-builder-cancel').addEventListener('click', ()=>{
   document.getElementById('overlay-surveys').classList.add('show');
 });
 document.getElementById('btn-add-question').addEventListener('click', ()=>{
-  state.surveyBuilderQuestions.push({id:newQuestionId(), text:'', type:'text', options:[], required:true, dependsOn:null});
+  state.surveyBuilderQuestions.push({id:newQuestionId(), text:'', type:'text', options:[], required:true, dependsOn:[]});
   renderSurveyBuilderQuestions();
 });
 
@@ -1150,11 +1164,12 @@ function renderSurveyBuilderQuestions(){
   box.innerHTML = list.map((q, idx)=>{
     const priorQuestions = list.slice(0, idx);
     const needsOptions = (q.type==='select' || q.type==='multiselect');
-    const dependsQ = q.dependsOn ? list.find(pq=>pq.id===q.dependsOn.questionId) : null;
-    let dependsValueOptions = [];
-    if(dependsQ){
-      if(dependsQ.type==='yesno') dependsValueOptions = ['نعم','لا'];
-      else if(dependsQ.type==='select' || dependsQ.type==='multiselect') dependsValueOptions = dependsQ.options||[];
+    const conditions = Array.isArray(q.dependsOn) ? q.dependsOn : [];
+    function valueOptionsFor(depQ){
+      if(!depQ) return [];
+      if(depQ.type==='yesno') return ['نعم','لا'];
+      if(depQ.type==='select' || depQ.type==='multiselect') return depQ.options||[];
+      return [];
     }
     return `
       <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;">
@@ -1187,16 +1202,27 @@ function renderSurveyBuilderQuestions(){
         </label>
         ${priorQuestions.length>0 ? `
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);">
-          <label style="font-size:12.5px;color:var(--ink-soft);">شرط الظهور (اختياري)</label>
-          <select onchange="updateSurveyQuestionDependsOn(${idx}, this.value)" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid var(--line);margin-top:4px;">
-            <option value="">يظهر دايمًا</option>
-            ${priorQuestions.map(pq=>`<option value="${pq.id}" ${q.dependsOn && q.dependsOn.questionId===pq.id ? 'selected':''}>يظهر بس لو إجابة "${escapeHtml(pq.text||'سؤال بدون نص')}" =</option>`).join('')}
-          </select>
-          ${dependsQ ? `
-          <select onchange="updateSurveyQuestionDependsValue(${idx}, this.value)" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid var(--line);margin-top:6px;">
-            <option value="">اختار القيمة...</option>
-            ${dependsValueOptions.map(v=>`<option value="${escapeHtml(v)}" ${q.dependsOn && q.dependsOn.value===v ? 'selected':''}>${escapeHtml(v)}</option>`).join('')}
-          </select>` : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <label style="font-size:12.5px;color:var(--ink-soft);">شروط الظهور (اختياري — لازم كل الشروط تتحقق مع بعض عشان السؤال يظهر)</label>
+            <button type="button" class="btn-ghost" style="padding:3px 9px;font-size:11.5px;" onclick="addSurveyQuestionCondition(${idx})">+ شرط</button>
+          </div>
+          ${conditions.length===0 ? `<p class="hint" style="margin:4px 0 0;">يظهر دايمًا</p>` : conditions.map((cond, cIdx)=>{
+            const depQ = list.find(pq=>pq.id===cond.questionId);
+            const valueOptions = valueOptionsFor(depQ);
+            return `
+            <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
+              <select onchange="updateSurveyQuestionConditionQuestion(${idx},${cIdx}, this.value)" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--line);">
+                <option value="">اختار سؤال...</option>
+                ${priorQuestions.map(pq=>`<option value="${pq.id}" ${cond.questionId===pq.id ? 'selected':''}>${escapeHtml(pq.text||'سؤال بدون نص')}</option>`).join('')}
+              </select>
+              ${depQ ? `
+              <select onchange="updateSurveyQuestionConditionValue(${idx},${cIdx}, this.value)" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--line);">
+                <option value="">= القيمة...</option>
+                ${valueOptions.map(v=>`<option value="${escapeHtml(v)}" ${cond.value===v ? 'selected':''}>${escapeHtml(v)}</option>`).join('')}
+              </select>` : ''}
+              <button type="button" class="btn-danger" style="padding:4px 9px;font-size:11.5px;" onclick="removeSurveyQuestionCondition(${idx},${cIdx})">✕</button>
+            </div>`;
+          }).join('')}
         </div>` : ''}
       </div>
     `;
@@ -1221,15 +1247,28 @@ window.updateSurveyQuestionOptions = function(idx, value){
 window.updateSurveyQuestionRequired = function(idx, checked){
   if(state.surveyBuilderQuestions[idx]) state.surveyBuilderQuestions[idx].required = checked;
 };
-window.updateSurveyQuestionDependsOn = function(idx, questionId){
+window.addSurveyQuestionCondition = function(idx){
   const q = state.surveyBuilderQuestions[idx];
   if(!q) return;
-  q.dependsOn = questionId ? {questionId, value:''} : null;
+  if(!Array.isArray(q.dependsOn)) q.dependsOn = [];
+  q.dependsOn.push({questionId:'', value:''});
   renderSurveyBuilderQuestions();
 };
-window.updateSurveyQuestionDependsValue = function(idx, value){
+window.removeSurveyQuestionCondition = function(idx, condIdx){
   const q = state.surveyBuilderQuestions[idx];
-  if(q && q.dependsOn) q.dependsOn.value = value;
+  if(!q || !Array.isArray(q.dependsOn)) return;
+  q.dependsOn.splice(condIdx, 1);
+  renderSurveyBuilderQuestions();
+};
+window.updateSurveyQuestionConditionQuestion = function(idx, condIdx, questionId){
+  const q = state.surveyBuilderQuestions[idx];
+  if(!q || !Array.isArray(q.dependsOn) || !q.dependsOn[condIdx]) return;
+  q.dependsOn[condIdx] = {questionId, value:''};
+  renderSurveyBuilderQuestions();
+};
+window.updateSurveyQuestionConditionValue = function(idx, condIdx, value){
+  const q = state.surveyBuilderQuestions[idx];
+  if(q && Array.isArray(q.dependsOn) && q.dependsOn[condIdx]) q.dependsOn[condIdx].value = value;
 };
 window.moveSurveyQuestion = function(idx, dir){
   const arr = state.surveyBuilderQuestions;
@@ -1242,7 +1281,7 @@ window.removeSurveyQuestion = function(idx){
   const removed = state.surveyBuilderQuestions[idx];
   state.surveyBuilderQuestions.splice(idx,1);
   state.surveyBuilderQuestions.forEach(q=>{
-    if(q.dependsOn && q.dependsOn.questionId===removed.id) q.dependsOn = null;
+    if(Array.isArray(q.dependsOn)) q.dependsOn = q.dependsOn.filter(c=>c.questionId!==removed.id);
   });
   renderSurveyBuilderQuestions();
 };
@@ -1330,6 +1369,13 @@ window.openSurveyFillForm = async function(surveyId){
   if(!survey) return;
   currentFillSurvey = survey;
   currentFillAnswers = {};
+  // بمجرد ما المندوب يفتح الاستمارة ويبدأ فيها، النقطة تبقى زرقاء (شغال عليها لسه)
+  const openedStore = state.stores.find(s=>s.id===state.surveyFillStoreId);
+  if(openedStore && !openedStore.surveyStarted){
+    openedStore.surveyStarted = true;
+    saveStores();
+    renderMarkers();
+  }
   currentFillNewPhotoFiles = {};
   currentFillExistingFolderUrl = {};
   document.getElementById('overlay-survey-list').classList.remove('show');
@@ -1355,11 +1401,18 @@ window.openSurveyFillForm = async function(surveyId){
 };
 
 function isSurveyQuestionVisible(q){
-  if(!q.dependsOn || !q.dependsOn.questionId) return true;
-  const parentAnswer = currentFillAnswers[q.dependsOn.questionId];
-  if(parentAnswer==null) return false;
-  if(Array.isArray(parentAnswer)) return parentAnswer.includes(q.dependsOn.value);
-  return String(parentAnswer) === String(q.dependsOn.value);
+  let conditions = q.dependsOn;
+  if(!conditions) return true;
+  if(!Array.isArray(conditions)) conditions = [conditions]; // توافق مع استبيانات قديمة بشرط واحد بس
+  const validConditions = conditions.filter(c=>c && c.questionId);
+  if(validConditions.length===0) return true;
+  // كل الشروط لازم تتحقق مع بعض (AND) عشان السؤال يظهر
+  return validConditions.every(cond=>{
+    const parentAnswer = currentFillAnswers[cond.questionId];
+    if(parentAnswer==null) return false;
+    if(Array.isArray(parentAnswer)) return parentAnswer.includes(cond.value);
+    return String(parentAnswer) === String(cond.value);
+  });
 }
 
 function renderSurveyFillForm(){
@@ -1370,7 +1423,7 @@ function renderSurveyFillForm(){
     const reqStar = q.required ? ' <span style="color:var(--red);">*</span>' : '';
     let inputHTML = '';
     const val = currentFillAnswers[q.id];
-    if(q.type==='yesno'){
+    if(q.type==='yesno' || q.type==='final_status'){
       inputHTML = `
         <div style="display:flex;gap:8px;">
           <button type="button" class="btn-ghost" style="flex:1;${val==='نعم'?'background:var(--green);color:#fff;border-color:var(--green);':''}" onclick="setSurveyAnswer('${q.id}','نعم')">نعم</button>
@@ -1485,7 +1538,7 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
         for(let i=0;i<newFiles.length;i++){
           btn.textContent = newFiles.length>1 ? `بيرفع صورة ${i+1} من ${newFiles.length}...` : 'بيرفع الصورة...';
           // بنرفعها في نفس فولدر المحل على درايف، مفيش لينك فردي بيتسجل - الرد كله بيرجع لرابط الفولدر بس
-          await uploadStorePhoto(newFiles[i], (store?store.code:'survey')+'_'+q.id+'_'+(i+1), store?store.code:'');
+          await uploadStorePhoto(newFiles[i], sanitizeForFileName(q.text) + '_' + blockLabelFromZoneId(store?store.zoneId:null, store?store.code:'') + (newFiles.length>1 ? '_'+(i+1) : ''), store?store.code:'');
         }
       }
     }
@@ -1514,6 +1567,19 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error||'فشل الإرسال');
+
+    // تحديث لون النقطة على الخريطة: بمجرد إرسال الاستبيان يبقى "جاري العمل" (أزرق)،
+    // ولو فيه سؤال "هل هذه الحالة النهائية؟" اتجاوب عليه بـ "نعم" يبقى "مكتمل" (أخضر)
+    if(store){
+      store.surveyStarted = true;
+      const finalQ = qs.find(q=>q.type==='final_status');
+      if(finalQ){
+        store.finalStatus = (currentFillAnswers[finalQ.id] === 'نعم');
+      }
+      saveStores();
+      renderMarkers();
+    }
+
     showToast('اتبعت الاستبيان بنجاح ✓');
     document.getElementById('overlay-survey-fill').classList.remove('show');
   }catch(err){
@@ -1569,7 +1635,7 @@ async function saveZones(){
       await window.storage.set(pk('zones:'+state.repCode), JSON.stringify(state.zones), true);
     }
   }catch(e){
-    showToast('في مشكلة في حفظ بيانات الزونات');
+    showToast('في مشكلة في حفظ بيانات المربعات');
   }
 }
 
@@ -1723,26 +1789,30 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
     : state.repCode;
 
   const showAdminEdit = state.isAdmin;
-  ['btn-import','btn-bulk-zone'].forEach(id => document.getElementById(id).style.display = showAdminEdit ? 'flex' : 'none');
-  document.getElementById('btn-master-update').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-manage-surveys').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-create-project').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-full-reset').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-reset-sheets').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-add-rep').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-bulk-add-reps').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-delete-rep').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('btn-reenable-rep').style.display = state.isAdmin ? 'flex' : 'none';
-  document.getElementById('dd-admin-divider').style.display = state.isAdmin ? 'block' : 'none';
+  const adminOnlyIds = [
+    'btn-import','btn-master-update','btn-manage-surveys','btn-create-project',
+    'btn-full-reset','btn-reset-sheets','btn-add-rep','btn-bulk-add-reps','btn-delete-rep','btn-reenable-rep',
+    'dd-admin-divider','dd-folder-reps-divider','dd-folder-reps-toggle','dd-folder-reps-items',
+    'toggle-live-track-label',
+  ];
+  adminOnlyIds.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(el.classList.contains('dd-folder-items')) el.style.display = 'none'; // مقفول افتراضيًا لحد ما يدوس عليه
+    else el.style.display = showAdminEdit ? (el.classList.contains('dd-folder-toggle') ? 'flex' : 'flex') : 'none';
+  });
 
   weekSelect.value = state.readOnly ? '1' : await loadCurrentWeek(state.repCode);
   loadSurveysFromServer(); // بنجيب الاستبيانات في الخلفية، مش لازم نستنى
 
-  const editButtons = ['btn-add-mode','btn-export','btn-zones','btn-backup-import','btn-locate','btn-swap-days'];
+  const editButtons = ['btn-add-mode','btn-export','btn-zones','btn-backup-import','btn-locate'];
   editButtons.forEach(id => document.getElementById(id).style.display = state.readOnly ? 'none' : 'flex');
 
   initMapOnce();
   renderMarkers();
+  populateZoneFilterOptions();
+  startLiveLocationPing(); // بدون تأثير لو أدمن (بترجع فورًا من غير ما تعمل حاجة)
+  startDataAutoRefresh(); // نفس الفكرة — تحديث دوري لبيانات المحلات/المربعات للمندوب بس
   if(state.repCode!=='ALL') setTimeout(maybeRemindMonthlyMinimum, 1200);
 });
 
@@ -1763,7 +1833,7 @@ function initMapOnce(){
   myLocationLayer = L.layerGroup().addTo(map);
   directionLayer = L.layerGroup().addTo(map);
   cluster = L.markerClusterGroup({maxClusterRadius:45});
-  if(document.getElementById('toggle-all-stores').checked) map.addLayer(cluster);
+  map.addLayer(cluster);
 
   map.on('click', (e)=>{
     if(state.addMode){
@@ -1782,8 +1852,6 @@ function initMapOnce(){
       });
     }
   });
-
-  setupBulkSelect();
 }
 
 /* ===================== My location + directions ===================== */
@@ -1942,10 +2010,15 @@ function drawMyLocation(accuracy){
   myLocationLayer.clearLayers();
   if(!myLocation) return;
   if(accuracy){
-    L.circle([myLocation.lat, myLocation.lng], {radius:accuracy, color:'#1a73e8', weight:1, fillColor:'#1a73e8', fillOpacity:.08}).addTo(myLocationLayer);
+    L.circle([myLocation.lat, myLocation.lng], {radius:accuracy, color:'#7C3AED', weight:1, fillColor:'#7C3AED', fillOpacity:.08}).addTo(myLocationLayer);
   }
+  const pinSvg = `
+    <svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));">
+      <path d="M17 0C7.6 0 0 7.6 0 17c0 12.5 17 29 17 29s17-16.5 17-29C34 7.6 26.4 0 17 0z" fill="#7C3AED"/>
+      <circle cx="17" cy="17" r="7" fill="#fff"/>
+    </svg>`;
   L.marker([myLocation.lat, myLocation.lng], {
-    icon: L.divIcon({className:'', html:'<div class="my-loc-pulse"></div>', iconSize:[16,16], iconAnchor:[8,8]}),
+    icon: L.divIcon({className:'', html:pinSvg, iconSize:[34,46], iconAnchor:[17,46]}),
     zIndexOffset: 1000
   }).bindTooltip('موقعي', {direction:'top'}).addTo(myLocationLayer);
   map.setView([myLocation.lat, myLocation.lng], Math.max(map.getZoom(), 14));
@@ -1967,6 +2040,17 @@ document.addEventListener('click', (e)=>{
 });
 dropdownMenu.querySelectorAll('.dd-item').forEach(item=>{
   item.addEventListener('click', ()=> dropdownMenu.classList.remove('show'));
+});
+dropdownMenu.querySelectorAll('.dd-folder-toggle').forEach(toggle=>{
+  toggle.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const items = document.getElementById(toggle.id.replace('-toggle','-items'));
+    if(!items) return;
+    const willOpen = items.style.display === 'none';
+    items.style.display = willOpen ? 'flex' : 'none';
+    const arrow = toggle.querySelector('.dd-folder-arrow');
+    if(arrow) arrow.textContent = willOpen ? '▾' : '▸';
+  });
 });
 
 function haversineKm(a, b){
@@ -2038,95 +2122,12 @@ window.goToStore = async function(storeId){
   }
 };
 
-/* ===================== Bulk rectangle select for zones ===================== */
-let bulkDragging = false, bulkStartPx = null, bulkSelectedStores = [];
-function setupBulkSelect(){
-  const container = map.getContainer();
-  const rectEl = document.createElement('div');
-  rectEl.className = 'select-rect';
-  container.appendChild(rectEl);
-
-  container.addEventListener('mousedown', (e)=>{
-    if(!state.bulkSelectMode) return;
-    bulkDragging = true;
-    const r = container.getBoundingClientRect();
-    bulkStartPx = {x: e.clientX-r.left, y: e.clientY-r.top};
-    Object.assign(rectEl.style, {left:bulkStartPx.x+'px', top:bulkStartPx.y+'px', width:'0px', height:'0px', display:'block'});
-  });
-  container.addEventListener('mousemove', (e)=>{
-    if(!bulkDragging) return;
-    const r = container.getBoundingClientRect();
-    const cur = {x: e.clientX-r.left, y: e.clientY-r.top};
-    const x = Math.min(cur.x, bulkStartPx.x), y = Math.min(cur.y, bulkStartPx.y);
-    const w = Math.abs(cur.x-bulkStartPx.x), h = Math.abs(cur.y-bulkStartPx.y);
-    Object.assign(rectEl.style, {left:x+'px', top:y+'px', width:w+'px', height:h+'px'});
-  });
-  window.addEventListener('mouseup', (e)=>{
-    if(!bulkDragging) return;
-    bulkDragging = false;
-    rectEl.style.display = 'none';
-    const r = container.getBoundingClientRect();
-    const endPx = {x: e.clientX-r.left, y: e.clientY-r.top};
-    if(Math.abs(endPx.x-bulkStartPx.x) < 6 && Math.abs(endPx.y-bulkStartPx.y) < 6) return; // ignore accidental tiny drags/clicks
-    const p1 = map.containerPointToLatLng([bulkStartPx.x, bulkStartPx.y]);
-    const p2 = map.containerPointToLatLng([endPx.x, endPx.y]);
-    const bounds = L.latLngBounds(p1, p2);
-    const selected = state.stores.filter(s => s.status==='valid' && bounds.contains([s.lat, s.lng]));
-    if(selected.length===0){ showToast('مفيش محلات جوه المنطقة اللي حددتها'); return; }
-    bulkSelectedStores = selected;
-    openBulkZonePanel(selected.length);
-  });
-}
-
-function setBulkSelectMode(v){
-  state.bulkSelectMode = v;
-  document.getElementById('btn-bulk-zone').classList.toggle('active', v);
-  if(v){
-    setAddMode(false);
-    map.dragging.disable();
-    map.getContainer().style.cursor = 'crosshair';
-  } else {
-    map.dragging.enable();
-    map.getContainer().style.cursor = '';
-    hideBulkZonePanel();
-  }
-}
-document.getElementById('btn-bulk-zone').addEventListener('click', ()=> setBulkSelectMode(!state.bulkSelectMode));
-
-function openBulkZonePanel(count){
-  const sel = document.getElementById('bulk-zone-select');
-  sel.innerHTML = state.zones.map(z=>`<option value="${z.id}">${escapeHtml(z.name)}</option>`).join('')
-    + `<option value="__new__">+ زون جديد</option>`;
-  document.getElementById('bulk-zone-count').textContent = `${count} محل متحدد —`;
-  document.getElementById('bulk-zone-panel').style.display = 'flex';
-}
-function hideBulkZonePanel(){
-  document.getElementById('bulk-zone-panel').style.display = 'none';
-  bulkSelectedStores = [];
-}
-document.getElementById('bulk-zone-cancel').addEventListener('click', hideBulkZonePanel);
-document.getElementById('bulk-zone-confirm').addEventListener('click', ()=>{
-  if(bulkSelectedStores.length===0) return;
-  let zoneId = document.getElementById('bulk-zone-select').value;
-  if(zoneId === '__new__'){
-    const nextNum = state.zones.length+1;
-    const zone = {id:'z_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name:'زون '+nextNum, color: ZONE_COLORS[(nextNum-1)%ZONE_COLORS.length]};
-    state.zones.push(zone);
-    zoneId = zone.id;
-  }
-  bulkSelectedStores.forEach(s=>{ s.zoneId = zoneId; });
-  saveStores(); saveZones();
-  renderMarkers();
-  showToast(`اتحدد ${bulkSelectedStores.length} محل للزون`);
-  hideBulkZonePanel();
-  // stay in bulk-select mode for repeated fast selection
-});
-
 function storeColor(store){
-  if(store.status !== 'valid') return getCss('--red');
-  if(store.assignment && store.assignment.suspended) return '#8B8FA3';
-  if(store.assignment) return getCss('--green');
-  return getCss('--amber');
+  if(store.status !== 'valid') return getCss('--red'); // محل فيه مشكلة (مغلق/متزال/الخ)
+  if(store.assignment && store.assignment.suspended) return '#8B8FA3'; // قائمة انتظار
+  if(store.finalStatus) return getCss('--green');   // الاستمارة اتقفلت نهائي
+  if(store.surveyStarted) return getCss('--blue');  // المندوب شغال على الاستمارة ولسه ما قفلهاش
+  return getCss('--red'); // لسه ما اتفتحش أو ما اتعملهاش استمارة خالص
 }
 function getCss(v){
   return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -2151,8 +2152,10 @@ function assignmentSummary(a){
 function renderMarkers(){
   cluster.clearLayers();
   const q = (document.getElementById('search-box').value||'').trim().toLowerCase();
+  const zoneFilterActive = state.selectedZoneFilter.size>0;
   state.stores.forEach(store=>{
     if(q && !(store.name.toLowerCase().includes(q) || String(store.code).toLowerCase().includes(q))) return;
+    if(zoneFilterActive && !state.selectedZoneFilter.has(store.zoneId)) return;
     const marker = L.marker([store.lat, store.lng], {icon: makeIcon(storeColor(store))});
     marker.bindPopup(buildPopupHTML(store), {closeButton:true});
     cluster.addLayer(marker);
@@ -2220,8 +2223,21 @@ async function renderZones(){
   if(!document.getElementById('toggle-zones').checked) return;
   for(const zone of state.zones){
     const zoneStores = state.stores.filter(s => s.zoneId === zone.id && (!zone.repCode || s.repCode === zone.repCode));
-    if(zoneStores.length===0) continue;
     const label = zone.repCode ? `${zone.repCode} — ${zone.name}` : zone.name;
+
+    // لو المربع عنده حدود حقيقية مستوردة من نظام الـ GIS (شكل شوارع فعلي)، بنرسمها زي ما هي
+    // من غير أي تقريب (convex hull) أو استعلام لخدمة الطرق. المربع ممكن يتكوّن من أكتر من
+    // قطعة منفصلة جغرافيًا (MultiPolygon)، فبنرسم كل قطعة لوحدها بنفس اللون.
+    const importedRings = zoneRings(zone);
+    if(importedRings){
+      importedRings.forEach((ring, ringIdx)=>{
+        const poly = L.polygon(ring, {color:zone.color, weight:2.5, fillColor:zone.color, fillOpacity:.12}).addTo(zoneLayer);
+        if(ringIdx===0) poly.bindTooltip(label, {permanent:true, direction:'center', className:'zone-label'});
+      });
+      continue;
+    }
+
+    if(zoneStores.length===0) continue;
     if(zoneStores.length < 3){
       zoneStores.forEach(s=>{
         L.circle([s.lat,s.lng], {radius:180, color:zone.color, weight:2, fillColor:zone.color, fillOpacity:.12}).addTo(zoneLayer);
@@ -2250,9 +2266,59 @@ async function renderZones(){
 let zoneRenderToken = 0;
 let dayRouteRenderToken = 0;
 document.getElementById('toggle-zones').addEventListener('change', renderZones);
-document.getElementById('toggle-all-stores').addEventListener('change', (e)=>{
-  if(e.target.checked){ map.addLayer(cluster); }
-  else { map.removeLayer(cluster); }
+
+/* ---------- فلتر عرض المربعات: قايمة منسدلة متعددة الاختيار بدل تشيك بوكس "إظهار كل المحلات" ----------
+   state.selectedZoneFilter فاضية = اعرض كل المحلات (الافتراضي). لو فيها أي زون IDs، بيتفلتر عليها بس. */
+state.selectedZoneFilter = new Set();
+
+function populateZoneFilterOptions(){
+  const box = document.getElementById('zone-filter-options');
+  if(!box) return;
+  if(state.zones.length===0){
+    box.innerHTML = `<p class="hint" style="padding:6px 10px;">مفيش مربعات لسه</p>`;
+    return;
+  }
+  box.innerHTML = state.zones.map(z=>{
+    const label = z.repCode ? `${z.repCode} — ${z.name}` : z.name;
+    const checked = state.selectedZoneFilter.has(z.id) ? 'checked' : '';
+    return `<label class="dd-item" style="cursor:pointer;">
+      <input type="checkbox" data-zone-id="${z.id}" ${checked} style="margin-left:6px;" onchange="toggleZoneFilterOption('${z.id}', this.checked)">
+      ${escapeHtml(label)}
+    </label>`;
+  }).join('');
+  updateZoneFilterLabel();
+}
+function updateZoneFilterLabel(){
+  const el = document.getElementById('zone-filter-label');
+  if(!el) return;
+  el.textContent = state.selectedZoneFilter.size===0 ? 'الكل' : `${state.selectedZoneFilter.size} محدد`;
+}
+window.toggleZoneFilterOption = function(zoneId, checked){
+  if(checked) state.selectedZoneFilter.add(zoneId);
+  else state.selectedZoneFilter.delete(zoneId);
+  updateZoneFilterLabel();
+  renderMarkers();
+};
+document.getElementById('btn-zone-filter').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  populateZoneFilterOptions();
+  document.getElementById('zone-filter-panel').classList.toggle('show');
+});
+document.getElementById('zone-filter-select-all').addEventListener('click', ()=>{
+  state.zones.forEach(z=>state.selectedZoneFilter.add(z.id));
+  populateZoneFilterOptions();
+  renderMarkers();
+});
+document.getElementById('zone-filter-clear').addEventListener('click', ()=>{
+  state.selectedZoneFilter.clear();
+  populateZoneFilterOptions();
+  renderMarkers();
+});
+document.addEventListener('click', (e)=>{
+  const panel = document.getElementById('zone-filter-panel');
+  if(panel && panel.classList.contains('show') && !e.target.closest('#btn-zone-filter') && !e.target.closest('#zone-filter-panel')){
+    panel.classList.remove('show');
+  }
 });
 
 function zoneNameOf(store){
@@ -2260,23 +2326,163 @@ function zoneNameOf(store){
   return z ? z.name : null;
 }
 
+/* ---------- ترحيل موقع محل: دائرة شفافة قابلة للسحب على الخريطة + تأكيد قبل ما الإحداثيات تتغير فعليًا ---------- */
+let relocateMarker = null;
+let relocateStoreId = null;
+
+window.startRelocateStore = function(storeId){
+  const store = state.stores.find(s=>s.id===storeId);
+  if(!store) return;
+  map.closePopup();
+  cancelRelocateStore();
+  relocateStoreId = storeId;
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:46px;height:46px;border-radius:50%;background:rgba(45,108,223,.18);border:2.5px dashed var(--blue);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:var(--blue);box-shadow:0 2px 10px rgba(0,0,0,.25);">+</div>`,
+    iconSize:[46,46], iconAnchor:[23,23]
+  });
+  relocateMarker = L.marker([store.lat, store.lng], {icon, draggable:true, zIndexOffset:1000}).addTo(map);
+  showToast('اسحب الدائرة الشفافة للمكان الصحيح وسيبها 👆');
+  relocateMarker.on('dragend', ()=>{
+    const pos = relocateMarker.getLatLng();
+    relocateMarker.bindPopup(`
+      <div class="pop" style="text-align:center;min-width:180px;">
+        <p class="pop-title" style="margin-bottom:8px;">تنقل "${escapeHtml(store.name)}" لهنا؟</p>
+        <button class="pop-btn primary" style="width:100%;margin-bottom:6px;" onclick="confirmRelocateStore(${pos.lat},${pos.lng})">✓ موافق على النقل لهذا الموقع</button>
+        <button class="pop-btn warn" style="width:100%;" onclick="cancelRelocateStore()">إلغاء</button>
+      </div>
+    `, {closeOnClick:false, autoClose:false}).openPopup();
+  });
+};
+
+window.confirmRelocateStore = function(lat, lng){
+  const store = state.stores.find(s=>s.id===relocateStoreId);
+  if(store){
+    const oldLat = store.lat, oldLng = store.lng;
+    store.lat = lat; store.lng = lng;
+    store.zoneId = findZoneIdByPolygon(lat, lng) || store.zoneId; // إعادة ربط تلقائي بالمربع الصح لو الموقع الجديد جوه حدود GIS
+    saveStores();
+    logAction('ترحيل موقع محل', store.code, store.name,
+      `اتنقل من (${oldLat.toFixed(6)}, ${oldLng.toFixed(6)}) لـ (${lat.toFixed(6)}, ${lng.toFixed(6)})`, store);
+    showToast('اتنقل الموقع بنجاح ✓');
+  }
+  cancelRelocateStore();
+  renderMarkers();
+};
+
+window.cancelRelocateStore = function(){
+  if(relocateMarker){ map.removeLayer(relocateMarker); relocateMarker = null; }
+  relocateStoreId = null;
+};
+
+/* ===================== متابعة لحظية للمناديب (Live Tracking) ===================== */
+/* كل مندوب (مش أدمن) بيبعت موقعه الحالي لمكان مركزي (window.storage) كل دقيقتين تلقائي.
+   الأدمن لما يفعّل التويجل بيقرا كل المواقع دي ويعرضها كنقط على الخريطة، وبيحدثها كل دقيقتين
+   كمان. ده حل جاهز يشتغل فورًا من غير سيرفر خارجي — ولو عندك سيرفر/قاعدة بيانات بتاعتك،
+   سهل تبدّل الجزئين (pingMyLiveLocation و refreshLiveTrackMarkers) عشان يقروا/يكتبوا منه بدل كده. */
+const LIVE_TRACK_INTERVAL_MS = 120000; // دقيقتين
+const LIVE_TRACK_STALE_MIN = 20; // مندوب مفيش منه تحديث من أكتر من كده، منعرضوش (يبقى قافل التطبيق)
+let liveLocationPingTimer = null;
+let liveTrackPollTimer = null;
+let liveTrackLayer = null;
+
+async function pingMyLiveLocation(){
+  if(state.isAdmin || !state.repCode || state.repCode==='ALL') return;
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    try{
+      await window.storage.set(pk('live_loc:'+state.repCode), JSON.stringify({
+        repCode: state.repCode,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        ts: Date.now(),
+      }), true);
+    }catch(e){ /* تجاهل فشل الشبكة، هيحاول تاني الدورة الجاية */ }
+  }, ()=>{ /* المندوب رافض صلاحية الموقع — تجاهل */ }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+}
+function startLiveLocationPing(){
+  if(state.isAdmin) return;
+  pingMyLiveLocation();
+  if(liveLocationPingTimer) clearInterval(liveLocationPingTimer);
+  liveLocationPingTimer = setInterval(pingMyLiveLocation, LIVE_TRACK_INTERVAL_MS);
+}
+
+/* ---------- تحديث دوري لبيانات المحلات/المربعات عند المندوب ----------
+   لو الأدمن رفع محلات/مربعات جديدة وهو المندوب فاتح التطبيق فعلاً، بيتحدث عنده تلقائي
+   من غير ما يحتاج يعمل Refresh يدوي للصفحة. بنعمل كده بس للمندوب (مش الأدمن) عشان الأدمن
+   أصلاً هو مصدر التعديلات، ومنتجنبش أي إعادة كتابة وهو نص تعديل. */
+const DATA_REFRESH_INTERVAL_MS = 120000; // كل دقيقتين
+let dataRefreshTimer = null;
+async function refreshStoresAndZonesFromServer(){
+  if(state.isAdmin || !state.repCode || state.repCode==='ALL') return;
+  try{
+    const freshStores = await loadStores(state.repCode);
+    const freshZones = await loadZones(state.repCode);
+    state.stores = freshStores;
+    state.zones = freshZones;
+    renderMarkers();
+    populateZoneFilterOptions();
+  }catch(e){ /* تجاهل فشل الشبكة، هيحاول تاني الدورة الجاية */ }
+}
+function startDataAutoRefresh(){
+  if(state.isAdmin) return;
+  if(dataRefreshTimer) clearInterval(dataRefreshTimer);
+  dataRefreshTimer = setInterval(refreshStoresAndZonesFromServer, DATA_REFRESH_INTERVAL_MS);
+}
+
+function allKnownRepCodesForTracking(){
+  const codes = [];
+  for(let i=1;i<=44;i++) codes.push('TDM'+i);
+  customReps.forEach(r=>{ if(!codes.includes(r.code)) codes.push(r.code); });
+  return codes;
+}
+async function refreshLiveTrackMarkers(){
+  if(!liveTrackLayer) liveTrackLayer = L.layerGroup().addTo(map);
+  liveTrackLayer.clearLayers();
+  const now = Date.now();
+  const codes = allKnownRepCodesForTracking();
+  await Promise.all(codes.map(async code=>{
+    try{
+      const res = await window.storage.get(pk('live_loc:'+code), true);
+      if(!res || !res.value) return;
+      const loc = JSON.parse(res.value);
+      const ageMin = (now - loc.ts) / 60000;
+      if(ageMin > LIVE_TRACK_STALE_MIN) return; // مندوب مش شغال دلوقتي
+      const icon = L.divIcon({
+        className:'',
+        html:`<div style="display:flex;align-items:center;gap:4px;background:#1B1F2B;color:#fff;padding:4px 9px;border-radius:20px;font-size:11.5px;font-weight:800;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid var(--blue);">🚶 ${escapeHtml(code)} <span style="opacity:.7;font-weight:600;">· ${Math.round(ageMin)} د</span></div>`,
+        iconSize:[0,0], iconAnchor:[0,10]
+      });
+      L.marker([loc.lat, loc.lng], {icon}).addTo(liveTrackLayer);
+    }catch(e){ /* تجاهل رد فاسد لمندوب واحد، منكملش نوقف الباقي */ }
+  }));
+}
+function startLiveTracking(){
+  refreshLiveTrackMarkers();
+  if(liveTrackPollTimer) clearInterval(liveTrackPollTimer);
+  liveTrackPollTimer = setInterval(refreshLiveTrackMarkers, LIVE_TRACK_INTERVAL_MS);
+}
+function stopLiveTracking(){
+  if(liveTrackPollTimer) clearInterval(liveTrackPollTimer);
+  liveTrackPollTimer = null;
+  if(liveTrackLayer) liveTrackLayer.clearLayers();
+}
+document.getElementById('toggle-live-track').addEventListener('change', (e)=>{
+  if(e.target.checked) startLiveTracking(); else stopLiveTracking();
+});
+
 function buildPopupHTML(store){
   const st = STATUS[store.status];
   const isProblem = store.status !== 'valid';
   let actions = '';
   if(isProblem){
     actions = `<button class="pop-btn warn" onclick="openReplaceFlow('${store.id}')">إضافة محل بديل</button>`;
-  } else if(store.assignment){
-    actions = ``;
-    if(state.isAdmin){
-      actions += `<button class="pop-btn primary" onclick="openAssignModal('${store.id}')">تعديل التسكين</button>`;
-    }
-    actions += `<button class="pop-btn warn" onclick="removeFromRoute('${store.id}')">إزالة من خط السير</button>`;
-  } else {
+  } else if(!store.assignment){
     actions = `<button class="pop-btn primary" onclick="openAssignModal('${store.id}')">إضافة لخط السير</button>`;
   }
   actions += `<button class="pop-btn dir" onclick="goToStore('${store.id}')">🧭 روح للمحل ده</button>`;
   actions += `<button class="pop-btn primary" onclick="openSurveysForStore('${store.id}')">📋 الاستبيانات</button>`;
+  if(!state.readOnly) actions += `<button class="pop-btn warn" onclick="startRelocateStore('${store.id}')">🎯 ترحيل الموقع</button>`;
 
   const hasNote = !!(store.notes && store.notes.trim());
   const noteHTML = `
@@ -2296,9 +2502,6 @@ function buildPopupHTML(store){
       <button class="pop-btn primary" style="margin-top:6px;width:100%;" onclick="confirmRenameStore('${store.id}')">حفظ الاسم الجديد</button>
     </div>`;
 
-  const zoneOptions = `<option value="">بدون زون</option>` +
-    state.zones.map(z=>`<option value="${z.id}" ${store.zoneId===z.id?'selected':''}>${escapeHtml(z.name)}</option>`).join('');
-
   return `
     <div class="pop">
       <p class="pop-title">${escapeHtml(store.name)}</p>
@@ -2306,14 +2509,6 @@ function buildPopupHTML(store){
       <select class="pop-select" onchange="changeStatus('${store.id}', this.value)">
         ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${store.status===k?'selected':''}>${v.label}</option>`).join('')}
       </select>
-      <select class="pop-select" onchange="assignZone('${store.id}', this.value)">
-        ${zoneOptions}
-      </select>
-      ${store.assignment ? `
-      <select class="pop-select" onchange="changeStoreDay('${store.id}', this.value)">
-        ${DAYS.map((d,i)=>`<option value="${i}" ${store.assignment.days[0]===i?'selected':''}>نقل ليوم ${d.ar}</option>`).join('')}
-      </select>` : ''}
-      <p class="pop-line" style="margin-top:10px;"><b>الحالة الحالية: </b>${assignmentSummary(store.assignment)}</p>
       <div class="pop-actions">${actions}</div>
       ${nameEditHTML}
       ${noteHTML}
@@ -2328,9 +2523,9 @@ window.assignZone = function(storeId, zoneId){
   saveStores();
   renderMarkers();
   map.closePopup();
-  showToast('اتحدد زون المحل');
-  const zoneName = zoneId ? (state.zones.find(z=>z.id===zoneId)||{}).name : 'بدون زون';
-  logAction('تغيير زون', store.code, store.name, `الزون: ${zoneName||''}`, store);
+  showToast('اتحدد مربع المحل');
+  const zoneName = zoneId ? (state.zones.find(z=>z.id===zoneId)||{}).name : 'بدون مربع';
+  logAction('تغيير مربع', store.code, store.name, `المربع: ${zoneName||''}`, store);
 };
 
 window.changeStoreDay = function(storeId, newDay){
@@ -2354,14 +2549,17 @@ function escapeHtml(s){
 
 /* ===================== Stats / search ===================== */
 function updateStats(){
-  const total = state.stores.length;
-  const problem = state.stores.filter(s=>s.status!=='valid').length;
-  const assigned = state.stores.filter(s=>s.status==='valid' && s.assignment).length;
-  const unassigned = total - problem - assigned;
+  const zoneFilterActive = state.selectedZoneFilter.size>0;
+  const scoped = zoneFilterActive ? state.stores.filter(s=>state.selectedZoneFilter.has(s.zoneId)) : state.stores;
+
+  const total = scoped.length;
+  const done = scoped.filter(s=>s.status==='valid' && s.finalStatus).length;
+  const inProgress = scoped.filter(s=>s.status==='valid' && s.surveyStarted && !s.finalStatus).length;
+  const notDone = total - done - inProgress;
   document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-assigned').textContent = assigned;
-  document.getElementById('stat-unassigned').textContent = unassigned;
-  document.getElementById('stat-problem').textContent = problem;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-in-progress').textContent = inProgress;
+  document.getElementById('stat-not-done').textContent = notDone;
 
   if(state.repCode!=='ALL'){
     const monthly = typeof totalMonthlyVisits === 'function' ? totalMonthlyVisits(null) : 0;
@@ -2441,200 +2639,6 @@ function numberIcon(num, color){
   });
 }
 
-const DAY_NAMES_AR = ['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
-const ROUTE_COLORS = ['#0B4F4A','#D6553F','#E2A33B','#5B6FD6','#B15FC4','#2E9E5B','#C97A2B'];
-
-document.getElementById('today-days-grid').innerHTML = DAY_NAMES_AR.map((name,i)=>
-  `<div class="day-pill" data-day="${i}">${name}</div>`).join('');
-
-const todayWeekRow = document.getElementById('today-week-row');
-let selectedScheduleDays = new Set();
-let lastScheduleResult = {}; // dayIndex -> { due, ordered, byRep }
-
-function setupTodayWeekRow(){
-  todayWeekRow.querySelectorAll('.radio-pill').forEach(p=>{
-    p.addEventListener('click', ()=>{
-      todayWeekRow.querySelectorAll('.radio-pill').forEach(x=>x.classList.remove('checked'));
-      p.classList.add('checked');
-      weekSelect.value = p.dataset.val;
-      saveCurrentWeek();
-      renderSelectedSchedule();
-    });
-  });
-}
-setupTodayWeekRow();
-
-document.getElementById('today-days-grid').addEventListener('click', (e)=>{
-  const pill = e.target.closest('.day-pill');
-  if(!pill) return;
-  const day = parseInt(pill.dataset.day,10);
-  if(selectedScheduleDays.has(day)){ selectedScheduleDays.delete(day); pill.classList.remove('checked'); }
-  else { selectedScheduleDays.add(day); pill.classList.add('checked'); }
-  renderSelectedSchedule();
-});
-
-function renderSelectedSchedule(){
-  const week = weekSelect.value;
-  dayRouteLayer.clearLayers();
-  lastScheduleResult = {};
-  const listEl = document.getElementById('today-list');
-  const subEl = document.getElementById('today-sub');
-
-  if(selectedScheduleDays.size===0){
-    listEl.innerHTML = '';
-    subEl.textContent = 'اختار يوم من فوق عشان تشوف المحلات والمسار بتاعه.';
-    return;
-  }
-
-  const days = Array.from(selectedScheduleDays).sort((a,b)=>a-b);
-  subEl.textContent = `الأسبوع ${week}`;
-  let listHtml = '';
-  const allLatLngsForFit = [];
-
-  days.forEach((dayI, colorIdx)=>{
-    const color = ROUTE_COLORS[dayI % ROUTE_COLORS.length];
-    const due = state.stores.filter(s => s.status==='valid' && isDueOnWeek(s.assignment, week) && s.assignment.days.includes(dayI));
-    const dayName = DAY_NAMES_AR[dayI];
-
-    listHtml += `<div style="display:flex;align-items:center;gap:7px;margin-top:10px;">
-      <span class="zone-swatch" style="background:${color};"></span>
-      <span style="font-weight:800;font-size:13px;color:var(--primary-dark);">${dayName} — ${due.length} محل</span>
-    </div>`;
-
-    if(due.length===0){
-      listHtml += `<p class="hint">مفيش محلات متسكنة يوم ${dayName} في الأسبوع ${week}.</p>`;
-      lastScheduleResult[dayI] = {due:[], ordered:[], byRep:null};
-      return;
-    }
-
-    if(state.repCode==='ALL'){
-      const byRep = {};
-      due.forEach(s=>{ (byRep[s.repCode]=byRep[s.repCode]||[]).push(s); });
-      listHtml += Object.entries(byRep).map(([rep,list])=>`
-        <div style="font-weight:700;font-size:12px;color:var(--ink-soft);margin-top:4px;">${rep}</div>
-        ${list.map(s=>`<div class="zone-row"><span style="font-size:12.5px;">${escapeHtml(s.name)} <span class="mono" style="color:var(--ink-soft);">(${escapeHtml(String(s.code))})</span></span></div>`).join('')}
-      `).join('');
-      due.forEach(s=>{
-        L.marker([s.lat,s.lng], {icon: numberIcon('•', color)}).bindPopup(buildPopupHTML(s), {closeButton:true}).addTo(dayRouteLayer);
-        allLatLngsForFit.push([s.lat,s.lng]);
-      });
-      lastScheduleResult[dayI] = {due, ordered:null, byRep};
-    } else {
-      const ordered = nearestNeighborOrder(due);
-      listHtml += ordered.map((s,i)=>`
-        <div class="zone-row">
-          <span class="zone-swatch" style="background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">${i+1}</span>
-          <span style="font-size:13px;flex:1;">${escapeHtml(s.name)} <span class="mono" style="color:var(--ink-soft);font-size:11.5px;">(${escapeHtml(String(s.code))})</span></span>
-        </div>`).join('');
-      const latlngs = [];
-      ordered.forEach((s,i)=>{
-        L.marker([s.lat,s.lng], {icon: numberIcon(i+1, color)}).bindPopup(buildPopupHTML(s), {closeButton:true}).addTo(dayRouteLayer);
-        latlngs.push([s.lat,s.lng]);
-        allLatLngsForFit.push([s.lat,s.lng]);
-      });
-      const fallbackLine = L.polyline(latlngs, {color, weight:3, dashArray:'6,6', opacity:.85}).addTo(dayRouteLayer);
-      const myToken = ++dayRouteRenderToken;
-      fetchRoadRoute(ordered).then(roadPath=>{
-        if(myToken !== dayRouteRenderToken) return;
-        if(!roadPath) return;
-        dayRouteLayer.removeLayer(fallbackLine);
-        L.polyline(roadPath, {color, weight:3.5, opacity:.85}).addTo(dayRouteLayer);
-      });
-      lastScheduleResult[dayI] = {due, ordered, byRep:null};
-    }
-  });
-
-  listEl.innerHTML = listHtml;
-  if(allLatLngsForFit.length) map.fitBounds(L.polyline(allLatLngsForFit).getBounds(), {padding:[40,40]});
-}
-
-document.getElementById('btn-today').addEventListener('click', ()=>{
-  selectedScheduleDays = new Set();
-  document.querySelectorAll('#today-days-grid .day-pill').forEach(p=>p.classList.remove('checked'));
-  todayWeekRow.querySelectorAll('.radio-pill').forEach(p=>p.classList.toggle('checked', p.dataset.val===weekSelect.value));
-  dayRouteLayer.clearLayers();
-  document.getElementById('today-list').innerHTML = '';
-  document.getElementById('today-sub').textContent = 'اختار يوم من فوق عشان تشوف المحلات والمسار بتاعه.';
-
-  const zoneSel = document.getElementById('today-zone-select');
-  if(state.zones.length===0){
-    zoneSel.innerHTML = `<option value="">مفيش زونات لسه</option>`;
-  } else {
-    zoneSel.innerHTML = state.zones.map(z=>{
-      const label = z.repCode ? `${z.repCode} — ${z.name}` : z.name;
-      return `<option value="${z.id}">${escapeHtml(label)}</option>`;
-    }).join('');
-  }
-
-  document.getElementById('overlay-today').classList.add('show');
-});
-document.getElementById('today-close').addEventListener('click', ()=>{
-  document.getElementById('overlay-today').classList.remove('show');
-});
-document.getElementById('today-clear-route').addEventListener('click', ()=>{
-  selectedScheduleDays = new Set();
-  document.querySelectorAll('#today-days-grid .day-pill').forEach(p=>p.classList.remove('checked'));
-  dayRouteLayer.clearLayers();
-  document.getElementById('today-list').innerHTML = '';
-  document.getElementById('today-sub').textContent = 'اختار يوم من فوق عشان تشوف المحلات والمسار بتاعه.';
-  showToast('اتمسحت كل المسارات من الخريطة');
-});
-
-document.getElementById('btn-zone-route').addEventListener('click', ()=>{
-  const zoneId = document.getElementById('today-zone-select').value;
-  if(!zoneId){ showToast('مفيش زون متاح تختاره'); return; }
-  const zone = state.zones.find(z=>z.id===zoneId);
-  if(!zone) return;
-
-  // switch the panel into "zone route" view: clear day selections first
-  selectedScheduleDays = new Set();
-  document.querySelectorAll('#today-days-grid .day-pill').forEach(p=>p.classList.remove('checked'));
-  dayRouteLayer.clearLayers();
-
-  const zoneStores = state.stores.filter(s => s.zoneId===zone.id && (!zone.repCode || s.repCode===zone.repCode));
-  const listEl = document.getElementById('today-list');
-  const subEl = document.getElementById('today-sub');
-  const label = zone.repCode ? `${zone.repCode} — ${zone.name}` : zone.name;
-
-  if(zoneStores.length===0){
-    subEl.textContent = `الزون "${label}" فاضي من غير محلات.`;
-    listEl.innerHTML = '';
-    return;
-  }
-
-  subEl.textContent = `مسار زون "${label}" — ${zoneStores.length} محل`;
-  const color = zone.color;
-
-  if(state.repCode==='ALL'){
-    const byRep = {};
-    zoneStores.forEach(s=>{ (byRep[s.repCode]=byRep[s.repCode]||[]).push(s); });
-    listEl.innerHTML = Object.entries(byRep).map(([rep,list])=>`
-      <div style="font-weight:700;font-size:12px;color:var(--ink-soft);margin-top:4px;">${rep}</div>
-      ${list.map(s=>`<div class="zone-row"><span style="font-size:12.5px;">${escapeHtml(s.name)} <span class="mono" style="color:var(--ink-soft);">(${escapeHtml(String(s.code))})</span></span></div>`).join('')}
-    `).join('');
-    const pts = [];
-    zoneStores.forEach(s=>{
-      L.marker([s.lat,s.lng], {icon: numberIcon('•', color)}).bindPopup(buildPopupHTML(s), {closeButton:true}).addTo(dayRouteLayer);
-      pts.push([s.lat,s.lng]);
-    });
-    if(pts.length) map.fitBounds(L.polyline(pts).getBounds(), {padding:[40,40]});
-  } else {
-    const ordered = nearestNeighborOrder(zoneStores);
-    listEl.innerHTML = ordered.map((s,i)=>`
-      <div class="zone-row">
-        <span class="zone-swatch" style="background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">${i+1}</span>
-        <span style="font-size:13px;flex:1;">${escapeHtml(s.name)} <span class="mono" style="color:var(--ink-soft);font-size:11.5px;">(${escapeHtml(String(s.code))})</span></span>
-      </div>`).join('');
-    const latlngs = [];
-    ordered.forEach((s,i)=>{
-      L.marker([s.lat,s.lng], {icon: numberIcon(i+1, color)}).bindPopup(buildPopupHTML(s), {closeButton:true}).addTo(dayRouteLayer);
-      latlngs.push([s.lat,s.lng]);
-    });
-    L.polyline(latlngs, {color, weight:3, dashArray:'6,6', opacity:.85}).addTo(dayRouteLayer);
-    map.fitBounds(L.polyline(latlngs).getBounds(), {padding:[40,40]});
-  }
-});
-
 /* ===================== Coordinate sanity check ===================== */
 const EGYPT_BOUNDS = {minLat:19, maxLat:33, minLng:23, maxLng:38};
 function isOutsideEgypt(lat, lng){
@@ -2646,7 +2650,6 @@ function setAddMode(v){
   state.addMode = v;
   document.getElementById('btn-add-mode').classList.toggle('active', v);
   document.getElementById('map').style.cursor = v ? 'crosshair' : '';
-  if(v && state.bulkSelectMode) setBulkSelectMode(false);
 }
 document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
   if(!state.isAdmin){
@@ -2670,7 +2673,7 @@ document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
     btn.innerHTML = originalHTML;
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
-      logAlert('محاولة إضافة برا الزون', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict));
+      logAlert('محاولة إضافة برا المربع', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict));
       return;
     }
     openStoreModal({mode:'add', lat: myLocation.lat, lng: myLocation.lng});
@@ -2699,23 +2702,24 @@ function runSmartSplit(){
   if(eligible.length===0){ showToast('مفيش محلات صحيحة للتقسيم'); return; }
   const numGroups = Math.max(1, Math.round(eligible.length/16));
   const groups = splitIntoGroups(eligible, numGroups);
-  const newZones = groups.map((g,i)=>({id:'z_'+Date.now()+'_'+i, name:'زون '+(i+1), color: ZONE_COLORS[i%ZONE_COLORS.length]}));
+  const newZones = groups.map((g,i)=>({id:'z_'+Date.now()+'_'+i, name:'مربع '+(i+1), color: ZONE_COLORS[i%ZONE_COLORS.length]}));
   state.stores.forEach(s=>{ s.zoneId = null; }); // reset problem/excluded stores' zone
   groups.forEach((g,i)=> g.forEach(store=> store.zoneId = newZones[i].id));
   state.zones = newZones;
   saveStores(); saveZones();
   renderMarkers();
   renderZonesList();
-  showToast(`اتقسمت المحلات لـ ${newZones.length} زون`);
+  showToast(`اتقسمت المحلات لـ ${newZones.length} مربع`);
 }
 
 let selectedRouteZones = new Set();
 
 function renderZonesList(){
+  populateZoneFilterOptions();
   const wrap = document.getElementById('zones-list');
   document.getElementById('zone-select-all').checked = false;
   if(state.zones.length===0){
-    wrap.innerHTML = '<p class="hint">لسه مفيش زونات. دوس "تقسيم ذكي تلقائي" أو ضيف زون يدوي.</p>';
+    wrap.innerHTML = '<p class="hint">لسه مفيش مربعات. دوس "تقسيم ذكي تلقائي" أو ضيف مربع يدوي.</p>';
     return;
   }
   wrap.innerHTML = state.zones.map(z=>{
@@ -2727,7 +2731,7 @@ function renderZonesList(){
         <span class="zone-swatch" style="background:${z.color}"></span>
         <input type="text" value="${escapeHtml(z.name)}" onchange="renameZone('${z.id}', this.value)">
         <span class="zone-count">${count} محل</span>
-        <button class="zone-del" onclick="deleteZone('${z.id}')" title="حذف الزون">✕</button>
+        <button class="zone-del" onclick="deleteZone('${z.id}')" title="حذف المربع">✕</button>
       </div>`;
   }).join('');
   wrap.querySelectorAll('.zone-route-check').forEach(cb=>{
@@ -2744,7 +2748,7 @@ document.getElementById('zone-select-all').addEventListener('change', (e)=>{
 });
 
 document.getElementById('btn-draw-selected-routes').addEventListener('click', ()=>{
-  if(selectedRouteZones.size===0){ showToast('حدد زون واحد على الأقل من التيك بوكس'); return; }
+  if(selectedRouteZones.size===0){ showToast('حدد مربع واحد على الأقل من التيك بوكس'); return; }
   dayRouteLayer.clearLayers();
   const myToken = ++dayRouteRenderToken;
   const allLatLngs = [];
@@ -2770,10 +2774,10 @@ document.getElementById('btn-draw-selected-routes').addEventListener('click', ()
     });
     drawnCount++;
   });
-  if(drawnCount===0){ showToast('كل الزونات المحددة فاضية، مفيش مسارات نرسمها'); return; }
+  if(drawnCount===0){ showToast('كل المربعات المحددة فاضية، مفيش مسارات نرسمها'); return; }
   if(allLatLngs.length) map.fitBounds(L.polyline(allLatLngs).getBounds(), {padding:[40,40]});
   document.getElementById('overlay-zones').classList.remove('show');
-  showToast(`اترسم مسار لـ ${drawnCount} زون`);
+  showToast(`اترسم مسار لـ ${drawnCount} مربع`);
 });
 
 window.renameZone = function(zoneId, newName){
@@ -2783,10 +2787,10 @@ window.renameZone = function(zoneId, newName){
   z.name = newName.trim();
   saveZones();
   renderMarkers();
-  logAction('تعديل اسم زون', '', '', `من "${oldName}" إلى "${z.name}"`);
+  logAction('تعديل اسم مربع', '', '', `من "${oldName}" إلى "${z.name}"`);
 };
 window.deleteZone = function(zoneId){
-  if(!confirm('حذف الزون ده؟ المحلات جواه هترجع من غير زون.')) return;
+  if(!confirm('حذف المربع ده؟ المحلات جواه هترجع من غير مربع.')) return;
   const z = state.zones.find(z=>z.id===zoneId);
   state.zones = state.zones.filter(z=>z.id!==zoneId);
   state.stores.forEach(s=>{ if(s.zoneId===zoneId) s.zoneId = null; });
@@ -2794,7 +2798,7 @@ window.deleteZone = function(zoneId){
   saveStores(); saveZones();
   renderMarkers();
   renderZonesList();
-  logAction('حذف زون', '', '', z ? z.name : zoneId);
+  logAction('حذف مربع', '', '', z ? z.name : zoneId);
 };
 
 document.getElementById('btn-zones').addEventListener('click', ()=>{
@@ -2806,15 +2810,91 @@ document.getElementById('zones-close').addEventListener('click', ()=>{
   document.getElementById('overlay-zones').classList.remove('show');
 });
 document.getElementById('btn-smart-split').addEventListener('click', ()=>{
-  if(state.zones.length>0 && !confirm('في زونات متعمولة قبل كده، التقسيم الذكي هيعيد ترتيبهم من الأول. تكمل؟')) return;
+  if(state.zones.length>0 && !confirm('في مربعات متعمولة قبل كده، التقسيم الذكي هيعيد ترتيبهم من الأول. تكمل؟')) return;
   runSmartSplit();
 });
+/* ---------- استيراد حدود مربعات حقيقية من ملف GeoJSON (مُصدَّر من ArcMap/أي نظام GIS) ---------- */
+document.getElementById('btn-import-zone-geojson').addEventListener('click', ()=>{
+  document.getElementById('zone-geojson-file').click();
+});
+document.getElementById('zone-geojson-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  try{
+    const text = await file.text();
+    const geojson = JSON.parse(text);
+    const features = geojson.features || [];
+    if(features.length===0){ showToast('الملف مفيهوش أي مربعات (features)'); return; }
+
+    let createdCount = 0, updatedCount = 0, matchedStoresCount = 0, skippedCount = 0;
+    features.forEach((feat, i)=>{
+      if(!feat.geometry) { skippedCount++; return; }
+      const props = feat.properties || {};
+      const zoneName = props.conc || props.ZONE_NAME || props.name || props.Name || `مربع مستورد ${i+1}`;
+      // بنقلب [lng,lat] بتاعة GeoJSON لـ [lat,lng] اللي Leaflet محتاجها
+      let rings = [];
+      if(feat.geometry.type === 'Polygon'){
+        const ring = (feat.geometry.coordinates[0] || []).map(c=>[c[1], c[0]]);
+        if(ring.length>=3) rings = [ring];
+      } else if(feat.geometry.type === 'MultiPolygon'){
+        // كل جزء منفصل جغرافيًا (زي المربعات الحقيقية من ArcMap) بيتحفظ كحلقة مستقلة
+        rings = (feat.geometry.coordinates || [])
+          .map(poly => (poly[0] || []).map(c=>[c[1], c[0]]))
+          .filter(ring => ring.length>=3);
+      } else {
+        skippedCount++; return; // نوع جيومتري مش مدعوم (زي Point أو LineString)
+      }
+      if(rings.length===0){ skippedCount++; return; }
+
+      let zone = state.zones.find(z=>z.name===String(zoneName) && (!z.repCode || z.repCode===state.repCode));
+      if(zone){
+        zone.rings = rings;
+        delete zone.polygon; // القيمة القديمة (حلقة واحدة بس) بقت مش محتاجينها بعد دعم الـ MultiPolygon
+        updatedCount++;
+      } else {
+        zone = {
+          id: 'z_geo_'+Date.now()+'_'+i,
+          name: String(zoneName),
+          color: ZONE_COLORS[state.zones.length % ZONE_COLORS.length],
+          rings: rings,
+        };
+        if(state.repCode!=='ALL') zone.repCode = state.repCode;
+        state.zones.push(zone);
+        createdCount++;
+      }
+
+      // نربط أي محل موجود فعلاً جوه أي حتة من حدود المربع (بكل أجزائه) بالمربع ده تلقائي
+      state.stores.forEach(s=>{
+        if(zone.repCode && s.repCode!==zone.repCode) return;
+        if(pointInZoneRings(s.lat, s.lng, rings)){
+          s.zoneId = zone.id;
+          matchedStoresCount++;
+        }
+      });
+    });
+
+    saveZones();
+    saveStores();
+    renderZonesList();
+    renderZones();
+    renderMarkers();
+    let msg = `اتضاف ${createdCount} مربع جديد، اتحدّث ${updatedCount}، واترَبط ${matchedStoresCount} محل بالمربعات دي`;
+    if(skippedCount>0) msg += `. اتجاهل ${skippedCount} عنصر (جيومتري مش مدعوم أو ناقص)`;
+    showToast(msg);
+  }catch(err){
+    showToast('حصل مشكلة في قراءة الملف — اتأكد إنه GeoJSON سليم');
+  }
+});
+
 document.getElementById('btn-add-zone').addEventListener('click', ()=>{
   const nextNum = state.zones.length+1;
-  state.zones.push({id:'z_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name:'زون '+nextNum, color: ZONE_COLORS[(nextNum-1)%ZONE_COLORS.length]});
+  const areaName = (prompt('اسم المنطقة اللي المربع ده جواها؟ (هيتحط في اسم المربع وأسماء الصور اللي هتترفع)', '') || '').trim();
+  const zoneName = areaName ? `${areaName}_${nextNum}` : `مربع ${nextNum}`;
+  state.zones.push({id:'z_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name:zoneName, color: ZONE_COLORS[(nextNum-1)%ZONE_COLORS.length]});
   saveZones();
   renderZonesList();
-  showToast('اتضاف زون جديد — دلوقتي حدد المحلات اللي جواه من الـ popup بتاعها على الخريطة');
+  showToast('اتضاف مربع جديد — دلوقتي حدد المحلات اللي جواه من الـ popup بتاعها على الخريطة');
 });
 
 const routeZoneDaySelect = document.getElementById('route-zone-day');
@@ -2838,7 +2918,7 @@ document.getElementById('btn-route-zone').addEventListener('click', ()=>{
   saveStores(); saveZones();
   renderMarkers();
   renderZonesList();
-  showToast(`اتعمل زون "${zoneName}" بـ ${due.length} محل`);
+  showToast(`اتعمل مربع "${zoneName}" بـ ${due.length} محل`);
 });
 
 /* ===================== Status change / replace ===================== */
@@ -2882,7 +2962,7 @@ window.openReplaceFlow = async function(storeId){
     const conflict = await checkTerritoryConflict(state.repCode, myLocation.lat, myLocation.lng);
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
-      logAlert('محاولة إضافة برا الزون', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict), store ? store.code : '', store ? store.name : '');
+      logAlert('محاولة إضافة برا المربع', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict), store ? store.code : '', store ? store.name : '');
       return;
     }
     openStoreModal({mode:'replace', lat: myLocation.lat, lng: myLocation.lng, replacingFor:storeId});
@@ -3051,61 +3131,6 @@ document.getElementById('assign-save').addEventListener('click', ()=>{
   logAction('تسكين/تعديل خط السير', store.code, store.name, assignmentSummary(newAssignment), store);
 });
 
-/* ===================== Swap Days modal ===================== */
-const overlaySwapDays = document.getElementById('overlay-swap-days');
-const swapDayASelect = document.getElementById('swap-day-a');
-const swapDayBSelect = document.getElementById('swap-day-b');
-[swapDayASelect, swapDayBSelect].forEach(sel=>{
-  sel.innerHTML = DAYS.map((d,i)=>`<option value="${i}">${d.ar}</option>`).join('');
-});
-swapDayBSelect.value = '1';
-
-function countStoresOnDay(dayIndex){
-  return state.stores.filter(s=> s.status==='valid' && s.assignment && !s.assignment.suspended && s.assignment.days.includes(dayIndex)).length;
-}
-function updateSwapDayCounts(){
-  const a = parseInt(swapDayASelect.value,10);
-  const b = parseInt(swapDayBSelect.value,10);
-  document.getElementById('swap-day-a-count').textContent = `عدد العملاء الحاليين: ${countStoresOnDay(a)}`;
-  document.getElementById('swap-day-b-count').textContent = `عدد العملاء الحاليين: ${countStoresOnDay(b)}`;
-}
-swapDayASelect.addEventListener('change', updateSwapDayCounts);
-swapDayBSelect.addEventListener('change', updateSwapDayCounts);
-
-document.getElementById('btn-swap-days').addEventListener('click', ()=>{
-  updateSwapDayCounts();
-  overlaySwapDays.classList.add('show');
-});
-document.getElementById('swap-days-cancel').addEventListener('click', ()=> overlaySwapDays.classList.remove('show'));
-document.getElementById('swap-days-confirm').addEventListener('click', ()=>{
-  const dayA = parseInt(swapDayASelect.value,10);
-  const dayB = parseInt(swapDayBSelect.value,10);
-  if(dayA === dayB){ showToast('اختار يومين مختلفين عشان تبدلهم'); return; }
-  const countA = countStoresOnDay(dayA);
-  const countB = countStoresOnDay(dayB);
-  const swapDateStr = new Date().toLocaleDateString('ar-EG');
-  let swapped = 0;
-  state.stores.forEach(s=>{
-    if(!s.assignment || !s.assignment.days) return;
-    if(!s.assignment.days.includes(dayA) && !s.assignment.days.includes(dayB)) return;
-    const wasOnA = s.assignment.days.includes(dayA);
-    s.assignment.days = Array.from(new Set(s.assignment.days.map(d=>{
-      if(d===dayA) return dayB;
-      if(d===dayB) return dayA;
-      return d;
-    }))).sort((x,y)=>x-y);
-    s.daySwapNote = wasOnA
-      ? `اتبدل من يوم ${DAYS[dayA].ar} إلى يوم ${DAYS[dayB].ar} (تبديل جماعي) — ${swapDateStr}`
-      : `اتبدل من يوم ${DAYS[dayB].ar} إلى يوم ${DAYS[dayA].ar} (تبديل جماعي) — ${swapDateStr}`;
-    swapped++;
-  });
-  saveStores();
-  renderMarkers();
-  overlaySwapDays.classList.remove('show');
-  showToast(`تم تبديل يوم ${DAYS[dayA].ar} (${countA} عميل) مع يوم ${DAYS[dayB].ar} (${countB} عميل) — إجمالي ${swapped} محل اتنقل.`);
-  logAction('تبديل يومين بالكامل', '', '', `${DAYS[dayA].ar} (${countA} عميل) ↔ ${DAYS[dayB].ar} (${countB} عميل) — ${swapped} محل`);
-});
-
 /* ===================== Add / Replace store modal ===================== */
 const overlayStore = document.getElementById('overlay-store');
 /* ===================== Auto store-code generation (per-rep ranges) ===================== */
@@ -3148,7 +3173,7 @@ async function allocateNewOverflowBlock(repCode, overflowMap){
   await saveOverflowNext(nextStart + CODE_RANGE_SIZE);
   return newRange;
 }
-/* ---------- تكويد تلقائي على مستوى المربع (زون) ----------
+/* ---------- تكويد تلقائي على مستوى المربع (مربع) ----------
    لو النقطة الجديدة وقعت جوه مربع فيه محلات قبل كده بسريال صغير (عشرات/مئات)،
    التكويد الجديد بيكمل من بعد أعلى سريال صغير في نفس المربع. لو المربع فاضي
    (مفيش محلات قريبة تنسبه لمربع معين) يبدأ من 1. */
@@ -3168,10 +3193,11 @@ function getNextBlockLocalCode(zoneId, usedCodes){
 async function getNextAutoCode(repCode, lat, lng){
   const usedCodes = new Set(state.stores.map(s=>parseInt(s.code,10)).filter(c=>!isNaN(c)));
 
-  // 1) نحاول الأول تكويد المربع المحلي لو النقطة قريبة من محلات موجودة فعلاً
+  // 1) نحاول الأول تكويد المربع المحلي — أولوية لحدود المربع الحقيقية (GIS)، وبعدها أقرب محل موجود فعلاً
   if(lat!=null && lng!=null && !isNaN(lat) && !isNaN(lng)){
+    const polyZoneId = findZoneIdByPolygon(lat, lng);
     const match = findNearestScheduledDay(lat, lng);
-    const blockCode = getNextBlockLocalCode(match ? match.zoneId : null, usedCodes);
+    const blockCode = getNextBlockLocalCode(polyZoneId || (match ? match.zoneId : null), usedCodes);
     if(blockCode!=null) return blockCode;
   }
 
@@ -3406,10 +3432,10 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     if(conflict){
       if(conflict.type === 'outside_all'){
         showToast('⛔ انت خارج جميع مناطق الإضافة، برجاء إجراء الإضافة داخل النطاق الخاص بك', true);
-        logAlert('محاولة إضافة برا الزون', 'برا كل مناطق الإضافة الخاصة بيه', code, name);
+        logAlert('محاولة إضافة برا المربع', 'برا كل مناطق الإضافة الخاصة بيه', code, name);
       } else {
         showToast(territoryConflictMessage(conflict), true);
-        logAlert('محاولة إضافة برا الزون', territoryConflictMessage(conflict), code, name);
+        logAlert('محاولة إضافة برا المربع', territoryConflictMessage(conflict), code, name);
       }
       return;
     }
@@ -3435,7 +3461,7 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   try{
     for(let i=0;i<currentStorePhotos.length;i++){
       saveBtn.textContent = `بيرفع الصورة ${i+1} من ${currentStorePhotos.length}...`;
-      const url = await uploadStorePhoto(currentStorePhotos[i], code + '_' + (i+1), code);
+      const url = await uploadStorePhoto(currentStorePhotos[i], 'صورة_المحل_' + blockLabelFromZoneId(matchedZoneId, code) + (currentStorePhotos.length>1 ? '_'+(i+1) : ''), code);
       photoUrls.push(url);
     }
   }catch(err){
@@ -3482,7 +3508,7 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
   } else {
     const matchedZone = matchedZoneId ? state.zones.find(z=>z.id===matchedZoneId) : null;
-    const zonePart = matchedZone ? ` جوه زون "${matchedZone.name}"` : (dayWasAutoMatched ? ' قريب من محلات متسكنة نفس اليوم' : '');
+    const zonePart = matchedZone ? ` جوه مربع "${matchedZone.name}"` : (dayWasAutoMatched ? ' قريب من محلات متسكنة نفس اليوم' : '');
     showToast(`${state.replacingFor ? 'اتضاف المحل البديل' : 'اتضاف المحل'}${zonePart} — يوم ${DAYS[assignment.days[0]].ar}. ${monthlyCapMessage(projectedTotal)}`);
   }
   state.replacingFor = null;
@@ -3498,27 +3524,45 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
   const existingCodes = new Set(state.stores.map(s => String(s.code).trim().toLowerCase()));
-  let added = 0, skippedDup = 0, outOfBounds = 0;
+  const usedNumericCodes = new Set(state.stores.map(s=>parseInt(s.code,10)).filter(c=>!isNaN(c)));
+  let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0;
   rows.forEach((row, idx)=>{
     if(idx===0) return; // skip header
     const [name, code, lat, lng] = row;
     if(!name || lat==null || lng==null) return;
     const latN = parseFloat(lat), lngN = parseFloat(lng);
     if(isNaN(latN) || isNaN(lngN)) return;
-    const codeStr = code!=null ? String(code).trim() : String(idx);
+
+    // بنحدد المربع اللي المحل واقع جواه فعليًا لو عندنا حدود GIS حقيقية مستوردة (زون بوليجون)
+    const zoneId = findZoneIdByPolygon(latN, lngN);
+    if(zoneId) matchedToBlock++;
+
+    let codeStr;
+    if(code!=null && String(code).trim()!==''){
+      codeStr = String(code).trim(); // الكود مكتوب في الملف — بنستخدمه زي ما هو
+    } else {
+      // عمود الكود فاضي — بنكوّده تلقائي بنفس منطق التكويد المحلي لكل مربع (فيتشر رقم 1)
+      const autoCode = getNextBlockLocalCode(zoneId, usedNumericCodes);
+      codeStr = autoCode!=null ? String(autoCode) : String(idx);
+      autoCoded++;
+    }
     if(existingCodes.has(codeStr.toLowerCase())){ skippedDup++; return; }
     existingCodes.add(codeStr.toLowerCase());
+    const numericCode = parseInt(codeStr, 10);
+    if(!isNaN(numericCode)) usedNumericCodes.add(numericCode);
     if(isOutsideEgypt(latN,lngN)) outOfBounds++;
     state.stores.push({
       id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'_'+idx,
       name:String(name).trim(), code: codeStr,
-      lat:latN, lng:lngN, status:'valid', assignment:null, zoneId:null, origin:'new',
+      lat:latN, lng:lngN, status:'valid', assignment:null, zoneId: zoneId, origin:'new',
     });
     added++;
   });
   saveStores();
   renderMarkers();
   let msg = `اتضاف ${added} محل من الملف`;
+  if(matchedToBlock>0) msg += `، ${matchedToBlock} منهم اترَبط بمربع تلقائي حسب حدود GIS`;
+  if(autoCoded>0) msg += `، ${autoCoded} كود اتحسب تلقائي`;
   if(skippedDup>0) msg += `، واتجاهل ${skippedDup} لأن الكود متكرر`;
   if(outOfBounds>0) msg += `. تنبيه: ${outOfBounds} منهم بإحداثيات غريبة برا حدود مصر، راجعهم`;
   showToast(msg);
@@ -3531,7 +3575,7 @@ document.getElementById('btn-master-update').addEventListener('click', ()=>{
 });
 
 document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
-  const warning = 'تحذير خطير:\n\nده هيمسح كل المحلات وكل الزونات (النطاقات) لكل الـ44 مندوب نهائيًا، وهيبدأ الخريطة فاضية تمامًا من الأول.\n\nهياخد باك أب لكل مندوب قبل المسح تقدر تسترجعه بعدين من "استرجاع نسخة"، لكن الأفضل تتأكد إنك عايز فعلاً تعمل كده.\n\nمتأكد عايز تكمل؟';
+  const warning = 'تحذير خطير:\n\nده هيمسح كل المحلات وكل المربعات (النطاقات) لكل الـ44 مندوب نهائيًا، وهيبدأ الخريطة فاضية تمامًا من الأول.\n\nهياخد باك أب لكل مندوب قبل المسح تقدر تسترجعه بعدين من "استرجاع نسخة"، لكن الأفضل تتأكد إنك عايز فعلاً تعمل كده.\n\nمتأكد عايز تكمل؟';
   if(!confirm(warning)) return;
   const typed = prompt('اكتب "تصفية كاملة" بالظبط عشان تأكد (من غير علامات تنصيص):');
   if(typed !== 'تصفية كاملة'){
@@ -3702,7 +3746,7 @@ document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
     showToast('الكود ده مش موجود في قايمة المناديب');
     return;
   }
-  const warning = `تحذير خطير:\n\nده هيمسح كل بيانات "${rep}" (المحلات + الزونات) نهائيًا، وهيوقف حسابه تمامًا من الدخول تاني على الابليكيشن.\n\nهياخد باك أب قبل المسح تقدر تسترجعه من "استرجاع نسخة"، بس الحساب هيفضل معطّل لحد ما تفعّله تاني من "تفعيل مندوب معطّل".\n\nمتأكد؟`;
+  const warning = `تحذير خطير:\n\nده هيمسح كل بيانات "${rep}" (المحلات + المربعات) نهائيًا، وهيوقف حسابه تمامًا من الدخول تاني على الابليكيشن.\n\nهياخد باك أب قبل المسح تقدر تسترجعه من "استرجاع نسخة"، بس الحساب هيفضل معطّل لحد ما تفعّله تاني من "تفعيل مندوب معطّل".\n\nمتأكد؟`;
   if(!confirm(warning)) return;
   const typed = prompt(`اكتب "${rep}" بالظبط عشان تأكد:`);
   if(typed !== rep){ showToast('اتلغى — النص مطابقش، مفيش حاجة اتمسحت'); return; }
@@ -4035,14 +4079,9 @@ async function runBackupExport(isAuto){
 }
 document.getElementById('btn-backup-export').addEventListener('click', ()=> runBackupExport(false));
 
-/* نسخة احتياطية تلقائية كل ساعة طول ما التطبيق مفتوح */
-setInterval(()=>{ if(!state.readOnly) runBackupExport(true); }, 60*60*1000);
-
-/* ===================== Exit confirmation with countdown ===================== */
+/* ===================== Exit confirmation (simple yes/no) ===================== */
 const overlayExitConfirm = document.getElementById('overlay-exit-confirm');
 const exitConfirmBtn = document.getElementById('exit-confirm');
-const exitCountdownSpan = document.getElementById('exit-countdown');
-let exitCountdownTimer = null;
 
 function doLogout(){
   document.getElementById('app').style.display = 'none';
@@ -4051,41 +4090,13 @@ function doLogout(){
   state.repCode = null; state.stores = [];
 }
 
-function startExitCountdown(){
-  let secondsLeft = 5;
-  exitConfirmBtn.disabled = true;
-  exitConfirmBtn.style.opacity = '.5';
-  exitConfirmBtn.textContent = '';
-  exitConfirmBtn.append('استنى... (');
-  const span = document.createElement('span');
-  span.id = 'exit-countdown';
-  span.textContent = secondsLeft;
-  exitConfirmBtn.append(span, ')');
-  exitCountdownTimer = setInterval(()=>{
-    secondsLeft--;
-    if(secondsLeft <= 0){
-      clearInterval(exitCountdownTimer);
-      exitConfirmBtn.disabled = false;
-      exitConfirmBtn.style.opacity = '1';
-      exitConfirmBtn.textContent = 'أيوة، خروج';
-    } else {
-      span.textContent = secondsLeft;
-    }
-  }, 1000);
-}
-
 document.getElementById('btn-logout').addEventListener('click', ()=>{
   overlayExitConfirm.classList.add('show');
-  startExitCountdown();
 });
-document.getElementById('exit-backup-now').addEventListener('click', ()=> runBackupExport(false));
 document.getElementById('exit-cancel').addEventListener('click', ()=>{
-  clearInterval(exitCountdownTimer);
   overlayExitConfirm.classList.remove('show');
 });
 exitConfirmBtn.addEventListener('click', ()=>{
-  if(exitConfirmBtn.disabled) return;
-  clearInterval(exitCountdownTimer);
   overlayExitConfirm.classList.remove('show');
   doLogout();
 });
