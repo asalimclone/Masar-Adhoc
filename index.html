@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>مسار — تخطيط خطوط السير</title>
+<title>ADHOC GEO FIELD</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="مسار">
+<meta name="apple-mobile-web-app-title" content="ADHOC GEO FIELD">
 <meta name="theme-color" content="#E12C63">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -22,6 +22,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
 <script>
 window.__SEED_DATA__ = {"TDM12":[
   {"id":"demo_1","name":"سوبر ماركت الأمل","code":"501","lat":30.0300,"lng":31.4700,"status":"valid","assignment":{"freq":"weekly","weekGroup":null,"days":[1]},"zoneId":"demo_block_a","origin":"old"},
@@ -184,7 +185,15 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 .pop-dir .pd-row{display:flex;justify-content:space-between;margin:2px 0;}
 .pop-dir .pd-row b{color:var(--primary-dark);}
 .pop-dir a{display:block;text-align:center;margin-top:8px;padding:7px;border-radius:7px;background:var(--primary);color:#fff;font-weight:700;text-decoration:none;font-size:12px;}
-.my-loc-pulse{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e8, 0 2px 6px rgba(0,0,0,.4);}
+.my-loc-pulse{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e8, 0 2px 6px rgba(0,0,0,.4);position:relative;}
+.my-loc-pulse::after{
+  content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;border-radius:50%;
+  background:#1a73e8;transform:translate(-50%,-50%);animation:my-loc-pulse-anim 1.8s ease-out infinite;
+}
+@keyframes my-loc-pulse-anim{
+  0%{transform:translate(-50%,-50%) scale(1);opacity:.6;}
+  100%{transform:translate(-50%,-50%) scale(3.2);opacity:0;}
+}
 
 /* ---------- Modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(9,20,18,.5);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}
@@ -246,7 +255,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   <div class="login-card">
     <div class="brand-mark">
       <img class="logo" src="data:image/png;base64,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" alt="ADHOC">
-      <div class="name">مسار أدهوك</div>
+      <div class="name">ADHOC GEO FIELD</div>
     </div>
     <p class="sub">تخطيط خطوط سير الفريق على الخريطة</p>
 
@@ -264,7 +273,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     </div>
     <button class="btn-primary" id="login-btn">دخول</button>
     <div class="login-err" id="login-err"></div>
-    <p class="copyright-line">Copyright © Asalim 2026 — مسار أدهوك</p>
+    <p class="copyright-line">Copyright © Asalim 2026 — ADHOC GEO FIELD</p>
   </div>
 </div>
 
@@ -273,12 +282,12 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   <header class="topbar">
     <div class="brand-mark">
       <img class="logo" src="data:image/png;base64,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" alt="ADHOC">
-      <div class="name">مسار أدهوك</div>
+      <div class="name">ADHOC GEO FIELD</div>
     </div>
     <div class="user-chip"><span class="dot"></span><span id="current-user-label"></span></div>
     <div class="topbar-actions">
       <button class="tb-btn" id="btn-add-mode"><span>＋</span><span class="label">إضافة محل</span></button>
-      <button class="tb-btn" id="btn-locate"><span><svg width="15" height="20" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-3px;"><path d="M17 0C7.6 0 0 7.6 0 17c0 12.5 17 29 17 29s17-16.5 17-29C34 7.6 26.4 0 17 0z" fill="#7C3AED"/><circle cx="17" cy="17" r="7" fill="#fff"/></svg></span><span class="label">موقعي</span></button>
+      <button class="tb-btn" id="btn-locate"><span>📍</span><span class="label">موقعي</span></button>
       <div class="menu-wrap">
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
         <div class="dropdown-menu" id="dropdown-menu">
@@ -301,14 +310,14 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 
           <div class="dd-divider admin-only" id="dd-folder-reps-divider" style="display:none;"></div>
           <button class="dd-folder-toggle admin-only" id="dd-folder-reps-toggle" type="button" style="display:none;">
-            <span class="dd-folder-arrow">▸</span> 📁 إدارة المناديب
+            <span class="dd-folder-arrow">▸</span> 📁 إدارة الباحثين
           </button>
           <div class="dd-folder-items admin-only" id="dd-folder-reps-items" style="display:none;">
-            <button class="dd-item dd-sub" id="btn-add-rep"><span>➕</span> إضافة مندوب جديد</button>
-            <button class="dd-item dd-sub" id="btn-bulk-add-reps"><span>📥</span> رفع مناديب بالإكسل (Bulk)</button>
-            <button class="dd-item dd-sub" id="btn-delete-rep" style="color:var(--red);"><span>🚫</span> حذف مندوب بالكامل</button>
-            <button class="dd-item dd-sub" id="btn-reenable-rep"><span>✅</span> تفعيل مندوب معطّل</button>
-            <button class="dd-item dd-sub" id="btn-full-reset" style="color:var(--red);"><span>🗑️</span> تصفية كاملة (كل المناديب)</button>
+            <button class="dd-item dd-sub" id="btn-add-rep"><span>➕</span> إضافة باحث جديد</button>
+            <button class="dd-item dd-sub" id="btn-bulk-add-reps"><span>📥</span> رفع باحثين بالإكسل (Bulk)</button>
+            <button class="dd-item dd-sub" id="btn-delete-rep" style="color:var(--red);"><span>🚫</span> حذف باحث بالكامل</button>
+            <button class="dd-item dd-sub" id="btn-reenable-rep"><span>✅</span> تفعيل باحث معطّل</button>
+            <button class="dd-item dd-sub" id="btn-full-reset" style="color:var(--red);"><span>🗑️</span> تصفية كاملة (كل الباحثين)</button>
           </div>
           <button class="dd-item admin-only" id="btn-reset-sheets" style="display:none;color:var(--red);"><span>🗑️</span> تصفية شيتات جوجل شيت (السجلات)</button>
           <div class="dd-divider"></div>
@@ -323,7 +332,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <div class="chip"><span class="sw" style="background:var(--blue)"></span>زيارات قيد التنفيذ <b id="stat-in-progress">0</b></div>
     <div class="chip"><span class="sw" style="background:var(--green)"></span>زيارات منجزة <b id="stat-done">0</b></div>
     <div class="chip">الإجمالي <b id="stat-total">0</b></div>
-    <div class="chip" id="stat-monthly-chip">زيارات الشهر <b id="stat-monthly">0</b> / 360-400</div>
+    <div class="chip" id="offline-queue-badge" style="display:none;background:var(--amber-tint);color:var(--amber);font-weight:800;"></div>
     <label class="chip" style="cursor:pointer;">
       <input type="checkbox" id="toggle-zones" checked style="margin:0;">
       إظهار المربعات
@@ -331,6 +340,9 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <div class="menu-wrap">
       <button class="chip" id="btn-zone-filter" style="cursor:pointer;border:none;">🗂️ عرض مربعات: <b id="zone-filter-label">الكل</b></button>
       <div class="dropdown-menu" id="zone-filter-panel" style="min-width:220px;max-height:280px;overflow-y:auto;">
+        <div style="padding:6px 8px;">
+          <input type="text" id="zone-filter-search" placeholder="دور باسم المربع..." style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:13px;">
+        </div>
         <div style="display:flex;gap:6px;padding:6px 8px;">
           <button class="btn-ghost" id="zone-filter-select-all" style="flex:1;padding:6px;font-size:12px;">تحديد الكل</button>
           <button class="btn-ghost" id="zone-filter-clear" style="flex:1;padding:6px;font-size:12px;">إلغاء التحديد</button>
@@ -340,7 +352,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     </div>
     <label class="chip admin-only" id="toggle-live-track-label" style="cursor:pointer;display:none;">
       <input type="checkbox" id="toggle-live-track" style="margin:0;">
-      🟢 متابعة لحظية للمناديب
+      🟢 متابعة لحظية للباحثين
     </label>
     <label class="chip" style="gap:5px;display:none;">
       الأسبوع الحالي:
@@ -367,10 +379,10 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 <div class="overlay" id="overlay-master">
   <div class="modal">
     <h3>تحديث الشيت الرئيسي</h3>
-    <p class="m-sub" id="master-sub">بتم قراءة الملف وتوزيعه على كل مندوب...</p>
+    <p class="m-sub" id="master-sub">بتم قراءة الملف وتوزيعه على كل باحث...</p>
     <p class="hint" style="margin-top:14px;">
-      البيانات الحالية لكل مندوب مش هتتمسح؛ هيتم فقط تحديث المحلات الموجودة في الملف الجديد (نفس الكود) وإضافة أي محل جديد. أي محل عندك في الأبليكيشن مش موجود في الملف (زي محل بديل ضفته إنت أو محل اتعمله تغيير حالة) هيفضل زي ما هو من غير ما يتمسح.
-      <br><br>هيتعمل نسخة احتياطية تلقائي لكل مندوب قبل التحديث، تقدر ترجعلها من تحت لو حصل خطأ في الملف.
+      البيانات الحالية لكل باحث مش هتتمسح؛ هيتم فقط تحديث المحلات الموجودة في الملف الجديد (نفس الكود) وإضافة أي محل جديد. أي محل عندك في الأبليكيشن مش موجود في الملف (زي محل بديل ضفته إنت أو محل اتعمله تغيير حالة) هيفضل زي ما هو من غير ما يتمسح.
+      <br><br>هيتعمل نسخة احتياطية تلقائي لكل باحث قبل التحديث، تقدر ترجعلها من تحت لو حصل خطأ في الملف.
     </p>
     <div id="master-progress" style="margin-top:14px;font-size:13px;color:var(--ink-soft);"></div>
     <div class="modal-actions" id="master-done-actions" style="display:none;">
@@ -378,7 +390,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     </div>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">استرجاع نسخة احتياطية لمندوب معين</label>
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">استرجاع نسخة احتياطية لباحث معين</label>
       <div style="display:flex;gap:8px;">
         <select id="restore-rep-select" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--line);"></select>
         <button class="btn-danger" id="btn-restore-backup" style="flex:none;padding:9px 16px;">استرجاع</button>
@@ -392,7 +404,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 <div class="overlay" id="overlay-surveys">
   <div class="modal" style="max-width:520px;">
     <h3>إدارة الاستبيانات</h3>
-    <p class="hint">الاستبيانات دي بتظهر لكل المناديب لما يفتحوا أي محل، وممكن المندوب يملا نفس الاستبيان أكتر من مرة.</p>
+    <p class="hint">الاستبيانات دي بتظهر لكل الباحثين لما يفتحوا أي محل، وممكن الباحث يملا نفس الاستبيان أكتر من مرة.</p>
     <div id="surveys-list" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>
     <div class="modal-actions">
       <button class="btn-ghost" id="surveys-close">قفل</button>
@@ -597,6 +609,8 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">📥 استيراد حدود مربعات حقيقية (GeoJSON)</label>
       <input type="file" id="zone-geojson-file" accept=".geojson,.json" style="display:none;">
       <button class="btn-ghost" id="btn-import-zone-geojson" style="width:100%;">اختار ملف GeoJSON للمربعات</button>
+      <input type="file" id="zone-shapefile-file" accept=".zip" style="display:none;">
+      <button class="btn-ghost" id="btn-import-zone-shapefile" style="width:100%;margin-top:8px;">اختار ملف Shapefile (.zip) للمربعات</button>
       <p class="hint">لو عندك حدود مربعات جاهزة من ArcMap أو أي نظام GIS (لازم تكون بصيغة GeoJSON)، هترسم شكل المربع بالظبط زي الحدود الحقيقية (مش تقريبي)، وتربط المحلات اللي جواها تلقائي. الملف لازم يكون فيه خاصية زي "ZONE_NAME" أو "conc" أو "name" لاسم كل مربع.</p>
     </div>
 
@@ -810,10 +824,10 @@ function findNearestScheduledDay(lat, lng, storesOverride){
   return null;
 }
 
-/* ===================== حصرية النطاق بين المناديب ===================== */
-/* أي محل جديد لازم يكون جوه نطاق المندوب بتاعه هو، مش برة في نطاق مندوب تاني، ومش برة
+/* ===================== حصرية النطاق بين الباحثين ===================== */
+/* أي محل جديد لازم يكون جوه نطاق الباحث بتاعه هو، مش برة في نطاق باحث تاني، ومش برة
    كل مناطق الإضافة المسجلة خالص. بنحسبها بأقرب محل فعلي حقيقي (مش حدود تقريبية). */
-const ALL_ZONES_MAX_DISTANCE_M = 6000; // لو أبعد من كده عن أي مندوب خالص، يبقى برة كل مناطق الإضافة
+const ALL_ZONES_MAX_DISTANCE_M = 6000; // لو أبعد من كده عن أي باحث خالص، يبقى برة كل مناطق الإضافة
 
 function territoryConflictMessage(conflict){
   if(conflict.type === 'outside_all'){
@@ -896,19 +910,96 @@ const state = {
 };
 
 /* ===================== Storage ===================== */
-async function loadStores(repCode){
+/* ---------- مرآة محلية (localStorage) لبيانات المحلات/المربعات ----------
+   window.storage محتاج نت عشان يوصل. لو النت واقع أو بطيء، أي حفظ بيه ممكن يفشل بصمت،
+   وأي حاجة حرجة زي تحول محل للون الأخضر ممكن "تضيع" لو الباحث قفل وفتح التطبيق قبل ما
+   النت يرجع. عشان كده بنكتب نسخة كمان في localStorage (محلي 100% على الجهاز، مبيحتاجش نت)
+   كـ "شبكة أمان": بنقرا منها لو window.storage فشل، وبنحاول نزامنها تاني أول ما النت يرجع. */
+function localMirrorSet(key, value){
+  try{ localStorage.setItem('masar_mirror::'+key, value); }catch(e){ /* مساحة التخزين خلصت، نادر جدًا */ }
+}
+function localMirrorGet(key){
+  try{ return localStorage.getItem('masar_mirror::'+key); }catch(e){ return null; }
+}
+function markKeyDirty(key){
   try{
-    const res = await window.storage.get(pk('stores:'+repCode), true);
+    const dirty = JSON.parse(localStorage.getItem('masar_dirty_keys')||'[]');
+    if(!dirty.includes(key)){ dirty.push(key); localStorage.setItem('masar_dirty_keys', JSON.stringify(dirty)); }
+  }catch(e){ /* تجاهل */ }
+}
+function clearDirtyKey(key){
+  try{
+    const dirty = JSON.parse(localStorage.getItem('masar_dirty_keys')||'[]').filter(k=>k!==key);
+    localStorage.setItem('masar_dirty_keys', JSON.stringify(dirty));
+  }catch(e){ /* تجاهل */ }
+}
+/* بيحاول يزامن أي مفتاح "متأخر" (اتحفظ محلي بس فشل يوصل للسيرفر المركزي) أول ما النت يرجع */
+async function resyncDirtyKeys(){
+  let dirty = [];
+  try{ dirty = JSON.parse(localStorage.getItem('masar_dirty_keys')||'[]'); }catch(e){ return; }
+  if(dirty.length===0) return;
+  for(const key of dirty.slice()){
+    const val = localMirrorGet(key);
+    if(val==null) { clearDirtyKey(key); continue; }
+    try{
+      await window.storage.set(key, val, true);
+      clearDirtyKey(key);
+    }catch(e){ /* لسه فاشل، هنحاول تاني بعدين */ }
+  }
+}
+window.addEventListener('online', resyncDirtyKeys);
+setInterval(resyncDirtyKeys, 45000);
+
+/* ---------- المحلات كلها بقت في "حوض" واحد مشترك بين كل الباحثين، بدل ما كل باحث يكون
+   ليه تخزين منفصل. أول مرة نحمّل بيها بعد التحديث ده، بنعمل ترحيل تلقائي لمرة واحدة بس:
+   بنجمع كل بيانات كل الباحثين القديمة (لو موجودة) في الحوض المشترك الجديد، عشان محدش
+   يضيع منه بيانات كانت متسكنة قبل كده. ---------- */
+async function loadStores(repCode){
+  const sharedKey = pk('stores:SHARED');
+  try{
+    const res = await window.storage.get(sharedKey, true);
     if(res && res.value){
       const parsed = JSON.parse(res.value);
-      if(Array.isArray(parsed) && parsed.length>0) return parsed;
+      if(Array.isArray(parsed)){
+        localMirrorSet(sharedKey, res.value);
+        return parsed;
+      }
     }
-  }catch(e){ /* no stored value yet */ }
-  // first time ever for this rep: seed from bundled master data if available
+  }catch(e){
+    const mirrored = localMirrorGet(sharedKey);
+    if(mirrored){
+      try{
+        const parsed = JSON.parse(mirrored);
+        if(Array.isArray(parsed)) return parsed;
+      }catch(e2){ /* تجاهل */ }
+    }
+  }
+
+  // مفيش حوض مشترك لسه — نجرب نرحّل بيانات كل الباحثين القديمة (لو موجودة) مرة واحدة بس
+  const merged = [];
+  const oldRepCodes = allKnownRepCodesForTracking();
+  for(const code of oldRepCodes){
+    try{
+      const res = await window.storage.get(pk('stores:'+code), true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed)){
+          parsed.forEach(s=>{ if(!s.repCode) s.repCode = code; merged.push(s); });
+        }
+      }
+    }catch(e){ /* تجاهل، هنكمل باقي الباحثين */ }
+  }
+  if(merged.length>0){
+    try{ await window.storage.set(sharedKey, JSON.stringify(merged), true); }catch(e){}
+    localMirrorSet(sharedKey, JSON.stringify(merged));
+    return merged;
+  }
+
+  // أول استخدام للتطبيق تمامًا: نبدأ بداتا تجريبية لو موجودة
   const seed = (window.__SEED_DATA__ && window.__SEED_DATA__[repCode]) ? window.__SEED_DATA__[repCode] : null;
   if(seed && seed.length){
     const cloned = JSON.parse(JSON.stringify(seed));
-    try{ await window.storage.set(pk('stores:'+repCode), JSON.stringify(cloned), true); }catch(e){}
+    try{ await window.storage.set(sharedKey, JSON.stringify(cloned), true); }catch(e){}
     return cloned;
   }
   return [];
@@ -916,8 +1007,93 @@ async function loadStores(repCode){
 /* ===================== سجل الأكشنات المركزي (Google Sheet) ===================== */
 const ACTION_LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzbQUE-XXmIslXt7lzwxRMOJFCuK73mMUV1WjaAhOFJNmG-d95j2FvZHc8XliO1W01Tpw/exec';
 
+/* ---------- طابور الحفظ المحلي (Offline Queue) ----------
+   أي أكشن (سجل أحداث، تنبيه، إجابة استبيان، رفع صورة) بيتبعت للسيرفر فورًا لو النت شغال.
+   لو النت واقع أو بطيء وفشل الإرسال، الأكشن بيتخزن كامل (بما فيه صور base64 لو موجودة) في
+   localStorage بدل ما يضيع، وبيتحاول يترفع تلقائي أول ما النت يرجع أو كل 45 ثانية. */
+const OFFLINE_QUEUE_KEY = 'masar_offline_queue_v1';
+
+function getOfflineQueue(){
+  try{ return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function setOfflineQueue(queue){
+  try{ localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue)); }
+  catch(e){ /* المساحة خلصت (نادر) — مفيش حل تاني غير نبلغ المستخدم */ }
+  updateOfflineQueueBadge();
+}
+function queueOfflineAction(payload){
+  const queue = getOfflineQueue();
+  queue.push({ id: 'q_'+Date.now()+'_'+Math.random().toString(36).slice(2,8), payload, queuedAt: Date.now() });
+  setOfflineQueue(queue);
+}
+function updateOfflineQueueBadge(){
+  const el = document.getElementById('offline-queue-badge');
+  if(!el) return;
+  const n = getOfflineQueue().length;
+  if(n>0){ el.textContent = `📤 ${n} عملية محفوظة محليًا في انتظار الرفع`; el.style.display = 'flex'; }
+  else { el.style.display = 'none'; }
+}
+
+/* بيحاول يبعت للسيرفر فورًا؛ لو النت واقع أو الإرسال فشل، بيخزن الطلب في الطابور المحلي بدل
+   ما يضيع، ومايوقفش شغل الباحث. مفيش throw أبدًا — دايمًا بيرجع نتيجة. */
+async function postToServerOrQueue(payload, timeoutMs){
+  if(!ACTION_LOG_ENDPOINT) return {ok:false, queued:false};
+  if(typeof navigator!=='undefined' && navigator.onLine===false){
+    queueOfflineAction(payload);
+    return {ok:false, queued:true};
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), timeoutMs || 20000);
+  try{
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload), signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'server error');
+    return {ok:true, data};
+  }catch(err){
+    clearTimeout(timer);
+    queueOfflineAction(payload);
+    return {ok:false, queued:true};
+  }
+}
+
+let flushingOfflineQueue = false;
+async function flushOfflineQueue(){
+  if(flushingOfflineQueue) return;
+  if(!ACTION_LOG_ENDPOINT) return;
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return;
+  const queue = getOfflineQueue();
+  if(queue.length===0) return;
+  flushingOfflineQueue = true;
+  const remaining = [];
+  for(const item of queue){
+    try{
+      const res = await fetch(ACTION_LOG_ENDPOINT, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(item.payload),
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error('server error');
+      // نجح الرفع — منسيبوش الأكشن ده في الطابور
+    }catch(err){
+      remaining.push(item); // لسه فاشل، هيتحاول تاني بعدين
+    }
+  }
+  const hadItems = queue.length>0;
+  setOfflineQueue(remaining);
+  flushingOfflineQueue = false;
+  if(hadItems && remaining.length===0) showToast('✅ اتبعتت كل العمليات المحفوظة محليًا للسيرفر بنجاح');
+  else if(remaining.length < queue.length) showToast(`📤 اترفع ${queue.length - remaining.length} من العمليات المعلقة، وباقي ${remaining.length}`);
+}
+window.addEventListener('online', flushOfflineQueue);
+setInterval(flushOfflineQueue, 45000);
+
 /* ===================== المشاريع (Multi-Project) ===================== */
-// كل مشروع منفصل تمامًا: مناديب مختلفة، بيانات مختلفة، شيت جوجل شيت ودرايف منفصلين.
+// كل مشروع منفصل تمامًا: باحثين مختلفة، بيانات مختلفة، شيت جوجل شيت ودرايف منفصلين.
 // المشروع الحالي بيتحدد من ليستة صفحة تسجيل الدخول، وكل مفاتيح التخزين المحلي (window.storage) بتتحط جوه namespace بتاعه.
 let currentProject = localStorage.getItem('masar_last_project') || 'gorilla';
 function pk(key){ return currentProject + '::' + key; }
@@ -925,22 +1101,16 @@ function pk(key){ return currentProject + '::' + key; }
 /* ---------- تنبيهات: محاولات مشبوهة تتبعت للأدمن دايمًا (حتى لو state.readOnly) ---------- */
 function logAlert(type, details, storeCode, storeName){
   if(!ACTION_LOG_ENDPOINT) return;
-  try{
-    const payload = {
-      project: currentProject,
-      repCode: state.repCode,
-      actionType: '⚠️ تنبيه',
-      storeCode: storeCode!=null ? String(storeCode) : '',
-      storeName: storeName || '',
-      details: '',
-      alert: { type, details: details || '' },
-    };
-    fetch(ACTION_LOG_ENDPOINT, {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify(payload),
-    }).catch(()=>{});
-  }catch(e){ /* تجاهل */ }
+  const payload = {
+    project: currentProject,
+    repCode: state.repCode,
+    actionType: '⚠️ تنبيه',
+    storeCode: storeCode!=null ? String(storeCode) : '',
+    storeName: storeName || '',
+    details: '',
+    alert: { type, details: details || '' },
+  };
+  postToServerOrQueue(payload);
 }
 function todayDaysIndex(){
   // DAYS[0] = السبت، وده بيتماشى مع getDay() من جافاسكريبت (0=الأحد...6=السبت)
@@ -949,28 +1119,22 @@ function todayDaysIndex(){
 
 function logAction(actionType, storeCode, storeName, details, store, newStoreDetails){
   if(!ACTION_LOG_ENDPOINT || state.readOnly) return; // مفيش رابط لسه، أو أدمن في وضع العرض بس
-  try{
-    const payload = {
-      project: currentProject,
-      repCode: state.repCode,
-      actionType,
-      storeCode: storeCode!=null ? String(storeCode) : '',
-      storeName: storeName || '',
-      details: details || '',
-    };
-    if(store){
-      payload.snapshotHeaders = getExportColumns();
-      payload.snapshotRow = buildStoreExportRow(store, state.repCode);
-    }
-    if(newStoreDetails){
-      payload.newStoreDetails = newStoreDetails;
-    }
-    fetch(ACTION_LOG_ENDPOINT, {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain;charset=utf-8'}, // كده عشان نتفادى مشكلة CORS preflight مع Google Apps Script
-      body: JSON.stringify(payload),
-    }).catch(()=>{}); // فشل التسجيل مايوقفش شغل المندوب أبدًا، بس تسجيل خلفي صامت
-  }catch(e){ /* تجاهل، التسجيل مش لازم يعطل حاجة */ }
+  const payload = {
+    project: currentProject,
+    repCode: state.repCode,
+    actionType,
+    storeCode: storeCode!=null ? String(storeCode) : '',
+    storeName: storeName || '',
+    details: details || '',
+  };
+  if(store){
+    payload.snapshotHeaders = getExportColumns();
+    payload.snapshotRow = buildStoreExportRow(store, state.repCode);
+  }
+  if(newStoreDetails){
+    payload.newStoreDetails = newStoreDetails;
+  }
+  postToServerOrQueue(payload); // لو النت واقع، الأكشن ده (بما فيه لون الحالة الجديد) بيتحفظ محليًا ويترفع تلقائي بعدين
 }
 
 /* ---------- رفع صورة على Drive عن طريق نفس الـ Apps Script ----------
@@ -1007,13 +1171,23 @@ function resizeImageToBase64(file, maxDim, quality){
 function sanitizeForFileName(s){
   return String(s||'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'_').trim();
 }
+/* زي sanitizeForFileName بس من غير ما يحول المسافات لـ underscore — مستخدمة لجزء نص السؤال في اسم الصورة */
+function sanitizeKeepSpaces(s){
+  return String(s||'').replace(/[\\/:*?"<>|]/g,'').trim();
+}
+/* وقت مقروء لاسم الملف: يوم-شهر-سنة_ساعة-دقيقة-ثانية، بدل رقم Unix timestamp الخام */
+function readableFileTimestamp(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}${pad(d.getMonth()+1)}${d.getFullYear()}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
 function blockLabelFromZoneId(zoneId, code){
   const zone = zoneId ? state.zones.find(z=>z.id===zoneId) : null;
   const areaBlock = zone ? zone.name : 'بدون_مربع';
   return sanitizeForFileName(areaBlock) + '_' + sanitizeForFileName(code);
 }
 
-async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, timeoutMs){
+async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, zoneName, timeoutMs){
   const base64 = await resizeImageToBase64(file, 2000, 0.88);
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(), timeoutMs || 45000);
@@ -1026,8 +1200,9 @@ async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, timeoutMs){
         project: currentProject,
         imageBase64: base64,
         mimeType: 'image/jpeg',
-        fileName: (fileNamePrefix || 'photo') + '_' + Date.now() + '.jpg',
+        fileName: (fileNamePrefix || 'photo') + '_' + readableFileTimestamp() + '.jpg',
         storeCode: storeCode || '',
+        zoneName: zoneName || '',
       }),
       signal: controller.signal,
     });
@@ -1039,14 +1214,32 @@ async function uploadStorePhotoOnce(file, fileNamePrefix, storeCode, timeoutMs){
   }
 }
 
-/* بتحاول ترفع الصورة، ولو فشلت (نت ضعيف / تايم آوت) بتعيد المحاولة مرة كمان قبل ما تستسلم */
-async function uploadStorePhoto(file, fileNamePrefix, storeCode){
+/* بتحاول ترفع الصورة، ولو فشلت مرتين (نت ضعيف/واقع) بتخزنها محليًا كاملة (بما فيها الصورة نفسها)
+   في طابور الحفظ المحلي، وبترجع نص مؤقت بدل ما توقف شغل الباحث؛ الصورة هترفع تلقائي أول ما النت يرجع. */
+async function uploadStorePhoto(file, fileNamePrefix, storeCode, zoneName){
   if(!file) return '';
   try{
-    return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, 45000);
+    return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, zoneName, 45000);
   }catch(err){
-    // محاولة تانية وأخيرة قبل ما نرمي الخطأ فعليًا
-    return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, 60000);
+    try{
+      return await uploadStorePhotoOnce(file, fileNamePrefix, storeCode, zoneName, 60000);
+    }catch(err2){
+      try{
+        const base64 = await resizeImageToBase64(file, 2000, 0.88);
+        queueOfflineAction({
+          kind: 'uploadImage',
+          project: currentProject,
+          imageBase64: base64,
+          mimeType: 'image/jpeg',
+          fileName: (fileNamePrefix || 'photo') + '_' + readableFileTimestamp() + '.jpg',
+          storeCode: storeCode || '',
+          zoneName: zoneName || '',
+        });
+        return '⏳ الصورة محفوظة على الجهاز، هترفع تلقائي أول ما النت يرجع';
+      }catch(err3){
+        return ''; // فشل حتى تصغير الصورة نفسه، حالة نادرة جدًا
+      }
+    }
   }
 }
 
@@ -1196,6 +1389,11 @@ function renderSurveyBuilderQuestions(){
           <label>الاختيارات (كل اختيار في سطر)</label>
           <textarea rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);" oninput="updateSurveyQuestionOptions(${idx}, this.value)">${escapeHtml((q.options||[]).join('\n'))}</textarea>
         </div>` : ''}
+        ${(q.type==='photo' || q.type==='multiphoto') ? `
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink-soft);margin-top:6px;">
+          <input type="checkbox" ${q.allowGallery!==false?'checked':''} onchange="updateSurveyQuestionAllowGallery(${idx}, this.checked)">
+          السماح برفع صور من المعرض (مش تصوير مباشر بس)
+        </label>` : ''}
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink-soft);margin-top:6px;">
           <input type="checkbox" ${q.required?'checked':''} onchange="updateSurveyQuestionRequired(${idx}, this.checked)">
           سؤال إجباري
@@ -1246,6 +1444,9 @@ window.updateSurveyQuestionOptions = function(idx, value){
 };
 window.updateSurveyQuestionRequired = function(idx, checked){
   if(state.surveyBuilderQuestions[idx]) state.surveyBuilderQuestions[idx].required = checked;
+};
+window.updateSurveyQuestionAllowGallery = function(idx, checked){
+  if(state.surveyBuilderQuestions[idx]) state.surveyBuilderQuestions[idx].allowGallery = checked;
 };
 window.addSurveyQuestionCondition = function(idx){
   const q = state.surveyBuilderQuestions[idx];
@@ -1336,7 +1537,7 @@ window.deleteSurveyById = async function(id){
   }catch(e){ showToast('حصلت مشكلة، جرب تاني'); }
 };
 
-/* ---------- مندوب: اختيار وملء استبيان لمحل معين ---------- */
+/* ---------- باحث: اختيار وملء استبيان لمحل معين ---------- */
 window.openSurveysForStore = function(storeId){
   state.surveyFillStoreId = storeId;
   map.closePopup();
@@ -1369,7 +1570,7 @@ window.openSurveyFillForm = async function(surveyId){
   if(!survey) return;
   currentFillSurvey = survey;
   currentFillAnswers = {};
-  // بمجرد ما المندوب يفتح الاستمارة ويبدأ فيها، النقطة تبقى زرقاء (شغال عليها لسه)
+  // بمجرد ما الباحث يفتح الاستمارة ويبدأ فيها، النقطة تبقى زرقاء (شغال عليها لسه)
   const openedStore = state.stores.find(s=>s.id===state.surveyFillStoreId);
   if(openedStore && !openedStore.surveyStarted){
     openedStore.surveyStarted = true;
@@ -1386,7 +1587,8 @@ window.openSurveyFillForm = async function(surveyId){
   const store = state.stores.find(s=>s.id===state.surveyFillStoreId);
   if(store && ACTION_LOG_ENDPOINT){
     try{
-      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyResponse&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
+      const storeZoneName = store.zoneId ? (state.zones.find(z=>z.id===store.zoneId)||{}).name || '' : '';
+      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyResponse&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}&zoneName=${encodeURIComponent(storeZoneName)}`);
       const data = await res.json();
       if(data.ok && data.response){
         currentFillAnswers = data.response.answers || {};
@@ -1395,7 +1597,7 @@ window.openSurveyFillForm = async function(surveyId){
         });
         showToast('اتحملت آخر إجابات اتسجلت للمحل ده، وتقدر تعدلها');
       }
-    }catch(e){ /* لو فشل التحميل، هيبدأ فاضي عادي من غير ما نوقف المندوب */ }
+    }catch(e){ /* لو فشل التحميل، هيبدأ فاضي عادي من غير ما نوقف الباحث */ }
   }
   renderSurveyFillForm();
 };
@@ -1456,13 +1658,14 @@ function renderSurveyFillForm(){
           <button type="button" onclick="removeSurveyNewPhoto('${q.id}',${i})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>
         </div>`).join('');
       const singleOnly = q.type==='photo';
+      const allowGallery = q.allowGallery!==false; // افتراضيًا مفتوح لو الأدمن ماحددش غير كده
       inputHTML = `
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-camera-${q.id}').click()">📷 افتح الكاميرا</button>
-          <button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-gallery-${q.id}').click()">⬆️ رفع الصور</button>
+          ${allowGallery ? `<button type="button" class="btn-ghost" style="flex:1;" onclick="document.getElementById('survey-photo-gallery-${q.id}').click()">⬆️ رفع الصور</button>` : ''}
         </div>
         <input type="file" accept="image/*" capture="environment" id="survey-photo-camera-${q.id}" style="display:none;" onchange="addSurveyPhoto('${q.id}', this.files, ${singleOnly})">
-        <input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" ${singleOnly?'':'multiple'} onchange="addSurveyPhoto('${q.id}', this.files, ${singleOnly})">
+        ${allowGallery ? `<input type="file" accept="image/*" id="survey-photo-gallery-${q.id}" style="display:none;" ${singleOnly?'':'multiple'} onchange="addSurveyPhoto('${q.id}', this.files, ${singleOnly})">` : ''}
         ${existingFolderUrl ? `<p class="hint">في صور اتسجلت قبل كده لنفس المحل — <a href="${existingFolderUrl}" target="_blank">دوس هنا تشوف فولدر الصور على درايف</a>. أي صورة جديدة هتتضاف لنفس الفولدر.</p>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:8px;">${thumbs}</div>`;
     }
@@ -1538,7 +1741,8 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
         for(let i=0;i<newFiles.length;i++){
           btn.textContent = newFiles.length>1 ? `بيرفع صورة ${i+1} من ${newFiles.length}...` : 'بيرفع الصورة...';
           // بنرفعها في نفس فولدر المحل على درايف، مفيش لينك فردي بيتسجل - الرد كله بيرجع لرابط الفولدر بس
-          await uploadStorePhoto(newFiles[i], sanitizeForFileName(q.text) + '_' + blockLabelFromZoneId(store?store.zoneId:null, store?store.code:'') + (newFiles.length>1 ? '_'+(i+1) : ''), store?store.code:'');
+          const zName = (store && store.zoneId) ? (state.zones.find(z=>z.id===store.zoneId)||{}).name || '' : '';
+          await uploadStorePhoto(newFiles[i], sanitizeKeepSpaces(q.text) + '_' + blockLabelFromZoneId(store?store.zoneId:null, store?store.code:'') + (newFiles.length>1 ? '_'+(i+1) : ''), store?store.code:'', zName);
         }
       }
     }
@@ -1551,25 +1755,23 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
       readableLines.push(`${q.text}: ${Array.isArray(v) ? v.join('، ') : (v!=null?v:'')}`);
     });
 
-    const res = await fetch(ACTION_LOG_ENDPOINT, {
-      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        kind:'submitSurveyResponse',
-        project: currentProject,
-        repCode: state.repCode,
-        storeCode: store ? store.code : '',
-        storeName: store ? store.name : '',
-        surveyName: survey.name,
-        surveyId: survey.id,
-        answers: answersToSend,
-        readableSummary: readableLines.join(' | '),
-      }),
-    });
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error||'فشل الإرسال');
+    const payload = {
+      kind:'submitSurveyResponse',
+      project: currentProject,
+      repCode: state.repCode,
+      storeCode: store ? store.code : '',
+      storeName: store ? store.name : '',
+      zoneName: (store && store.zoneId) ? (state.zones.find(z=>z.id===store.zoneId)||{}).name || '' : '',
+      surveyName: survey.name,
+      surveyId: survey.id,
+      answers: answersToSend,
+      readableSummary: readableLines.join(' | '),
+    };
+    const result = await postToServerOrQueue(payload);
 
-    // تحديث لون النقطة على الخريطة: بمجرد إرسال الاستبيان يبقى "جاري العمل" (أزرق)،
-    // ولو فيه سؤال "هل هذه الحالة النهائية؟" اتجاوب عليه بـ "نعم" يبقى "مكتمل" (أخضر)
+    // تحديث لون النقطة على الخريطة فورًا ومحليًا بغض النظر عن حالة النت — بمجرد إرسال الاستمارة
+    // (حتى لو محفوظة محليًا وهتترفع بعدين) يبقى "جاري العمل" (أزرق)، ولو فيه سؤال "هل هذه الحالة
+    // النهائية؟" اتجاوب عليه بـ "نعم" يبقى "مكتمل" (أخضر) — ومايرجعش تاني لأحمر/أزرق أبدًا.
     if(store){
       store.surveyStarted = true;
       const finalQ = qs.find(q=>q.type==='final_status');
@@ -1580,7 +1782,7 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
       renderMarkers();
     }
 
-    showToast('اتبعت الاستبيان بنجاح ✓');
+    showToast(result.queued ? 'مفيش نت دلوقتي — الاستمارة محفوظة على جهازك وهتترفع تلقائي أول ما النت يرجع 📤' : 'اتبعت الاستبيان بنجاح ✓');
     document.getElementById('overlay-survey-fill').classList.remove('show');
   }catch(err){
     showToast('حصلت مشكلة في إرسال الاستبيان، جرب تاني');
@@ -1590,53 +1792,58 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
 });
 
 async function saveStores(){
-  try{
-    if(state.repCode === 'ALL'){
-      // مود الأدمن المدمج: كل محل معاه repCode بتاع صاحبه، فبنجمعهم ونحفظ كل مجموعة عند صاحبها لوحده
-      const byRep = {};
-      state.stores.forEach(s=>{
-        const owner = s.repCode || 'TDM1';
-        if(!byRep[owner]) byRep[owner] = [];
-        byRep[owner].push(s);
-      });
-      for(const rep of Object.keys(byRep)){
-        await window.storage.set(pk('stores:'+rep), JSON.stringify(byRep[rep]), true);
-      }
-    } else {
-      await window.storage.set(pk('stores:'+state.repCode), JSON.stringify(state.stores), true);
-    }
-  }catch(e){
-    showToast('في مشكلة في حفظ البيانات، حاول تاني');
-  }
+  const key = pk('stores:SHARED');
+  const val = JSON.stringify(state.stores);
+  localMirrorSet(key, val); // بيتحفظ محلي فورًا ومبيفشلش
+  try{ await window.storage.set(key, val, true); clearDirtyKey(key); }
+  catch(e){ markKeyDirty(key); showToast('مفيش نت دلوقتي — البيانات اتحفظت على جهازك وهتترفع تلقائي أول ما النت يرجع'); }
 }
 async function loadZones(repCode){
+  const sharedKey = pk('zones:SHARED');
   try{
-    const res = await window.storage.get(pk('zones:'+repCode), true);
+    const res = await window.storage.get(sharedKey, true);
     if(res && res.value){
       const parsed = JSON.parse(res.value);
-      if(Array.isArray(parsed)) return parsed;
+      if(Array.isArray(parsed)){
+        localMirrorSet(sharedKey, res.value);
+        return parsed;
+      }
     }
-  }catch(e){ /* no zones yet */ }
+  }catch(e){
+    const mirrored = localMirrorGet(sharedKey);
+    if(mirrored){
+      try{
+        const parsed = JSON.parse(mirrored);
+        if(Array.isArray(parsed)) return parsed;
+      }catch(e2){ /* تجاهل */ }
+    }
+  }
+
+  // ترحيل تلقائي لمرة واحدة بس من مربعات الباحثين القدامى (لو موجودة) للحوض المشترك الجديد
+  const merged = [];
+  const oldRepCodes = allKnownRepCodesForTracking();
+  for(const code of oldRepCodes){
+    try{
+      const res = await window.storage.get(pk('zones:'+code), true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed)) parsed.forEach(z=>merged.push(z));
+      }
+    }catch(e){ /* تجاهل، هنكمل باقي الباحثين */ }
+  }
+  if(merged.length>0){
+    try{ await window.storage.set(sharedKey, JSON.stringify(merged), true); }catch(e){}
+    localMirrorSet(sharedKey, JSON.stringify(merged));
+    return merged;
+  }
   return [];
 }
 async function saveZones(){
-  try{
-    if(state.repCode === 'ALL'){
-      const byRep = {};
-      state.zones.forEach(z=>{
-        const owner = z.repCode || 'TDM1';
-        if(!byRep[owner]) byRep[owner] = [];
-        byRep[owner].push(z);
-      });
-      for(const rep of Object.keys(byRep)){
-        await window.storage.set(pk('zones:'+rep), JSON.stringify(byRep[rep]), true);
-      }
-    } else {
-      await window.storage.set(pk('zones:'+state.repCode), JSON.stringify(state.zones), true);
-    }
-  }catch(e){
-    showToast('في مشكلة في حفظ بيانات المربعات');
-  }
+  const key = pk('zones:SHARED');
+  const val = JSON.stringify(state.zones);
+  localMirrorSet(key, val);
+  try{ await window.storage.set(key, val, true); clearDirtyKey(key); }
+  catch(e){ markKeyDirty(key); }
 }
 
 /* ===================== Login flow ===================== */
@@ -1645,7 +1852,7 @@ const restoreRepSelect = document.getElementById('restore-rep-select');
 const storeOwnerRepSelect = document.getElementById('store-owner-rep-select');
 const projectSelect = document.getElementById('login-project');
 
-let customReps = []; // مناديب زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين، ومنفصلين لكل مشروع
+let customReps = []; // باحثين زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين، ومنفصلين لكل مشروع
 async function loadCustomReps(){
   try{
     const res = await window.storage.get(pk('custom_reps'), true);
@@ -1739,7 +1946,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
     }catch(e){ /* لو فشل التحقق، منكملش نمنع دخول شرعي بسبب مشكلة شبكة */ }
   }
   if(user === 'admin'){
-    // الأدمن دلوقتي بيشوف ويعدّل على بيانات كل المناديب مع بعض في نفس المشروع، من غير ما يختار مندوب بعينه
+    // الأدمن دلوقتي بيشوف ويعدّل على بيانات كل الباحثين مع بعض في نفس المشروع، من غير ما يختار باحث بعينه
     state.isAdmin = true;
     state.repCode = 'ALL';
     state.readOnly = false;
@@ -1748,7 +1955,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
     state.repCode = user;
     state.readOnly = false;
 
-    // تنبيه: لو الجهاز ده كان متسجل عليه مندوب مختلف قبل كده
+    // تنبيه: لو الجهاز ده كان متسجل عليه باحث مختلف قبل كده
     try{
       const DEVICE_KEY = 'masar_last_device_rep';
       const lastRepOnDevice = localStorage.getItem(DEVICE_KEY);
@@ -1760,24 +1967,11 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   }
 
   document.getElementById('login-btn').disabled = true;
-  document.getElementById('login-btn').textContent = state.isAdmin ? 'بتجمع بيانات كل المناديب...' : 'جاري الدخول...';
+  document.getElementById('login-btn').textContent = 'جاري الدخول...';
 
-  if(state.isAdmin){
-    state.stores = [];
-    state.zones = [];
-    const allCodes = [];
-    for(let i=1;i<=44;i++) allCodes.push('TDM'+i);
-    customReps.forEach(r=>{ if(!allCodes.includes(r.code)) allCodes.push(r.code); });
-    for(const code of allCodes){
-      const s = await loadStores(code);
-      s.forEach(st => state.stores.push(Object.assign({}, st, {repCode: code})));
-      const z = await loadZones(code);
-      z.forEach(zn => state.zones.push(Object.assign({}, zn, {repCode: code})));
-    }
-  } else {
-    state.stores = await loadStores(state.repCode);
-    state.zones = await loadZones(state.repCode);
-  }
+  // المحلات والمربعات كلها بقت في حوض واحد مشترك بين كل الباحثين والأدمن، فبنحمّلها مرة واحدة بس
+  state.stores = await loadStores(state.repCode);
+  state.zones = await loadZones(state.repCode);
 
   document.getElementById('login-btn').disabled = false;
   document.getElementById('login-btn').textContent = 'دخول';
@@ -1785,7 +1979,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('current-user-label').textContent = state.isAdmin
-    ? 'admin — كل المناديب'
+    ? 'admin — كل الباحثين'
     : state.repCode;
 
   const showAdminEdit = state.isAdmin;
@@ -1812,7 +2006,10 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   renderMarkers();
   populateZoneFilterOptions();
   startLiveLocationPing(); // بدون تأثير لو أدمن (بترجع فورًا من غير ما تعمل حاجة)
-  startDataAutoRefresh(); // نفس الفكرة — تحديث دوري لبيانات المحلات/المربعات للمندوب بس
+  startDataAutoRefresh(); // نفس الفكرة — تحديث دوري لبيانات المحلات/المربعات للباحث بس
+  updateOfflineQueueBadge();
+  flushOfflineQueue();
+  resyncDirtyKeys();
   if(state.repCode!=='ALL') setTimeout(maybeRemindMonthlyMinimum, 1200);
 });
 
@@ -2010,15 +2207,10 @@ function drawMyLocation(accuracy){
   myLocationLayer.clearLayers();
   if(!myLocation) return;
   if(accuracy){
-    L.circle([myLocation.lat, myLocation.lng], {radius:accuracy, color:'#7C3AED', weight:1, fillColor:'#7C3AED', fillOpacity:.08}).addTo(myLocationLayer);
+    L.circle([myLocation.lat, myLocation.lng], {radius:accuracy, color:'#1a73e8', weight:1, fillColor:'#1a73e8', fillOpacity:.08}).addTo(myLocationLayer);
   }
-  const pinSvg = `
-    <svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));">
-      <path d="M17 0C7.6 0 0 7.6 0 17c0 12.5 17 29 17 29s17-16.5 17-29C34 7.6 26.4 0 17 0z" fill="#7C3AED"/>
-      <circle cx="17" cy="17" r="7" fill="#fff"/>
-    </svg>`;
   L.marker([myLocation.lat, myLocation.lng], {
-    icon: L.divIcon({className:'', html:pinSvg, iconSize:[34,46], iconAnchor:[17,46]}),
+    icon: L.divIcon({className:'', html:'<div class="my-loc-pulse"></div>', iconSize:[16,16], iconAnchor:[8,8]}),
     zIndexOffset: 1000
   }).bindTooltip('موقعي', {direction:'top'}).addTo(myLocationLayer);
   map.setView([myLocation.lat, myLocation.lng], Math.max(map.getZoom(), 14));
@@ -2126,7 +2318,7 @@ function storeColor(store){
   if(store.status !== 'valid') return getCss('--red'); // محل فيه مشكلة (مغلق/متزال/الخ)
   if(store.assignment && store.assignment.suspended) return '#8B8FA3'; // قائمة انتظار
   if(store.finalStatus) return getCss('--green');   // الاستمارة اتقفلت نهائي
-  if(store.surveyStarted) return getCss('--blue');  // المندوب شغال على الاستمارة ولسه ما قفلهاش
+  if(store.surveyStarted) return getCss('--blue');  // الباحث شغال على الاستمارة ولسه ما قفلهاش
   return getCss('--red'); // لسه ما اتفتحش أو ما اتعملهاش استمارة خالص
 }
 function getCss(v){
@@ -2278,7 +2470,13 @@ function populateZoneFilterOptions(){
     box.innerHTML = `<p class="hint" style="padding:6px 10px;">مفيش مربعات لسه</p>`;
     return;
   }
-  box.innerHTML = state.zones.map(z=>{
+  const q = (document.getElementById('zone-filter-search').value||'').trim().toLowerCase();
+  const filtered = q ? state.zones.filter(z=>z.name.toLowerCase().includes(q)) : state.zones;
+  if(filtered.length===0){
+    box.innerHTML = `<p class="hint" style="padding:6px 10px;">مفيش مربع اسمه شبه الكلمة دي</p>`;
+    return;
+  }
+  box.innerHTML = filtered.map(z=>{
     const label = z.repCode ? `${z.repCode} — ${z.name}` : z.name;
     const checked = state.selectedZoneFilter.has(z.id) ? 'checked' : '';
     return `<label class="dd-item" style="cursor:pointer;">
@@ -2288,6 +2486,8 @@ function populateZoneFilterOptions(){
   }).join('');
   updateZoneFilterLabel();
 }
+document.getElementById('zone-filter-search').addEventListener('input', populateZoneFilterOptions);
+document.getElementById('zone-filter-search').addEventListener('click', (e)=> e.stopPropagation());
 function updateZoneFilterLabel(){
   const el = document.getElementById('zone-filter-label');
   if(!el) return;
@@ -2375,13 +2575,13 @@ window.cancelRelocateStore = function(){
   relocateStoreId = null;
 };
 
-/* ===================== متابعة لحظية للمناديب (Live Tracking) ===================== */
-/* كل مندوب (مش أدمن) بيبعت موقعه الحالي لمكان مركزي (window.storage) كل دقيقتين تلقائي.
+/* ===================== متابعة لحظية للباحثين (Live Tracking) ===================== */
+/* كل باحث (مش أدمن) بيبعت موقعه الحالي لمكان مركزي (window.storage) كل دقيقتين تلقائي.
    الأدمن لما يفعّل التويجل بيقرا كل المواقع دي ويعرضها كنقط على الخريطة، وبيحدثها كل دقيقتين
    كمان. ده حل جاهز يشتغل فورًا من غير سيرفر خارجي — ولو عندك سيرفر/قاعدة بيانات بتاعتك،
    سهل تبدّل الجزئين (pingMyLiveLocation و refreshLiveTrackMarkers) عشان يقروا/يكتبوا منه بدل كده. */
 const LIVE_TRACK_INTERVAL_MS = 120000; // دقيقتين
-const LIVE_TRACK_STALE_MIN = 20; // مندوب مفيش منه تحديث من أكتر من كده، منعرضوش (يبقى قافل التطبيق)
+const LIVE_TRACK_STALE_MIN = 20; // باحث مفيش منه تحديث من أكتر من كده، منعرضوش (يبقى قافل التطبيق)
 let liveLocationPingTimer = null;
 let liveTrackPollTimer = null;
 let liveTrackLayer = null;
@@ -2398,7 +2598,7 @@ async function pingMyLiveLocation(){
         ts: Date.now(),
       }), true);
     }catch(e){ /* تجاهل فشل الشبكة، هيحاول تاني الدورة الجاية */ }
-  }, ()=>{ /* المندوب رافض صلاحية الموقع — تجاهل */ }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+  }, ()=>{ /* الباحث رافض صلاحية الموقع — تجاهل */ }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
 }
 function startLiveLocationPing(){
   if(state.isAdmin) return;
@@ -2407,11 +2607,11 @@ function startLiveLocationPing(){
   liveLocationPingTimer = setInterval(pingMyLiveLocation, LIVE_TRACK_INTERVAL_MS);
 }
 
-/* ---------- تحديث دوري لبيانات المحلات/المربعات عند المندوب ----------
-   لو الأدمن رفع محلات/مربعات جديدة وهو المندوب فاتح التطبيق فعلاً، بيتحدث عنده تلقائي
-   من غير ما يحتاج يعمل Refresh يدوي للصفحة. بنعمل كده بس للمندوب (مش الأدمن) عشان الأدمن
+/* ---------- تحديث دوري لبيانات المحلات/المربعات عند الباحث ----------
+   لو الأدمن رفع محلات/مربعات جديدة وهو الباحث فاتح التطبيق فعلاً، بيتحدث عنده تلقائي
+   من غير ما يحتاج يعمل Refresh يدوي للصفحة. بنعمل كده بس للباحث (مش الأدمن) عشان الأدمن
    أصلاً هو مصدر التعديلات، ومنتجنبش أي إعادة كتابة وهو نص تعديل. */
-const DATA_REFRESH_INTERVAL_MS = 120000; // كل دقيقتين
+const DATA_REFRESH_INTERVAL_MS = 25000; // 25 ثانية — عشان المحلات/المربعات الجديدة تظهر عند الباحث بسرعة
 let dataRefreshTimer = null;
 async function refreshStoresAndZonesFromServer(){
   if(state.isAdmin || !state.repCode || state.repCode==='ALL') return;
@@ -2447,14 +2647,14 @@ async function refreshLiveTrackMarkers(){
       if(!res || !res.value) return;
       const loc = JSON.parse(res.value);
       const ageMin = (now - loc.ts) / 60000;
-      if(ageMin > LIVE_TRACK_STALE_MIN) return; // مندوب مش شغال دلوقتي
+      if(ageMin > LIVE_TRACK_STALE_MIN) return; // باحث مش شغال دلوقتي
       const icon = L.divIcon({
         className:'',
         html:`<div style="display:flex;align-items:center;gap:4px;background:#1B1F2B;color:#fff;padding:4px 9px;border-radius:20px;font-size:11.5px;font-weight:800;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid var(--blue);">🚶 ${escapeHtml(code)} <span style="opacity:.7;font-weight:600;">· ${Math.round(ageMin)} د</span></div>`,
         iconSize:[0,0], iconAnchor:[0,10]
       });
       L.marker([loc.lat, loc.lng], {icon}).addTo(liveTrackLayer);
-    }catch(e){ /* تجاهل رد فاسد لمندوب واحد، منكملش نوقف الباقي */ }
+    }catch(e){ /* تجاهل رد فاسد لباحث واحد، منكملش نوقف الباقي */ }
   }));
 }
 function startLiveTracking(){
@@ -2560,26 +2760,10 @@ function updateStats(){
   document.getElementById('stat-done').textContent = done;
   document.getElementById('stat-in-progress').textContent = inProgress;
   document.getElementById('stat-not-done').textContent = notDone;
-
-  if(state.repCode!=='ALL'){
-    const monthly = typeof totalMonthlyVisits === 'function' ? totalMonthlyVisits(null) : 0;
-    const el = document.getElementById('stat-monthly');
-    if(el){
-      el.textContent = monthly;
-      const chip = document.getElementById('stat-monthly-chip');
-      if(monthly < MONTHLY_VISIT_MIN) chip.style.color = 'var(--amber)';
-      else if(monthly > MONTHLY_VISIT_MAX) chip.style.color = 'var(--red)';
-      else chip.style.color = 'var(--green)';
-      chip.style.display = 'flex';
-    }
-  } else {
-    const chip = document.getElementById('stat-monthly-chip');
-    if(chip) chip.style.display = 'none';
-  }
 }
 document.getElementById('search-box').addEventListener('input', renderMarkers);
 
-/* تذكير دوري لو المندوب لسه تحت الحد الأدنى المطلوب من الزيارات الشهرية */
+/* تذكير دوري لو الباحث لسه تحت الحد الأدنى المطلوب من الزيارات الشهرية */
 function maybeRemindMonthlyMinimum(){
   if(state.repCode==='ALL' || !state.repCode) return;
   const monthly = totalMonthlyVisits(null);
@@ -2653,10 +2837,10 @@ function setAddMode(v){
 }
 document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
   if(!state.isAdmin){
-    // المندوب لازم يحدد موقعه الفعلي الأول، والإضافة بتتم بالظبط في مكانه (مش دوس على الخريطة)
+    // الباحث لازم يحدد موقعه الفعلي الأول، والإضافة بتتم بالظبط في مكانه (مش دوس على الخريطة)
     if(!myLocation){
       showToast('لازم تدوس "موقعي" الأول عشان نحدد مكانك بالظبط، وبعدين تقدر تضيف المحل');
-      logAlert('محاولة إضافة من غير لوكيشن', 'المندوب حاول يضيف محل من غير ما يحدد موقعه أصلاً');
+      logAlert('محاولة إضافة من غير لوكيشن', 'الباحث حاول يضيف محل من غير ما يحدد موقعه أصلاً');
       return;
     }
     if(myLocation.approximate){
@@ -2814,6 +2998,68 @@ document.getElementById('btn-smart-split').addEventListener('click', ()=>{
   runSmartSplit();
 });
 /* ---------- استيراد حدود مربعات حقيقية من ملف GeoJSON (مُصدَّر من ArcMap/أي نظام GIS) ---------- */
+/* ---------- استيراد مربعات من مصفوفة GeoJSON features — مستخدمة سواء الملف الأصلي GeoJSON
+   أو Shapefile اتحول لـ GeoJSON في المتصفح الأول ---------- */
+function importZoneFeatures(features){
+  if(!features || features.length===0){ showToast('الملف مفيهوش أي مربعات (features)'); return; }
+
+  let createdCount = 0, updatedCount = 0, matchedStoresCount = 0, skippedCount = 0;
+  features.forEach((feat, i)=>{
+    if(!feat.geometry) { skippedCount++; return; }
+    const props = feat.properties || {};
+    const zoneName = props.conc || props.ZONE_NAME || props.name || props.Name || `مربع مستورد ${i+1}`;
+    // بنقلب [lng,lat] بتاعة GeoJSON لـ [lat,lng] اللي Leaflet محتاجها
+    let rings = [];
+    if(feat.geometry.type === 'Polygon'){
+      const ring = (feat.geometry.coordinates[0] || []).map(c=>[c[1], c[0]]);
+      if(ring.length>=3) rings = [ring];
+    } else if(feat.geometry.type === 'MultiPolygon'){
+      // كل جزء منفصل جغرافيًا (زي المربعات الحقيقية من ArcMap) بيتحفظ كحلقة مستقلة
+      rings = (feat.geometry.coordinates || [])
+        .map(poly => (poly[0] || []).map(c=>[c[1], c[0]]))
+        .filter(ring => ring.length>=3);
+    } else {
+      skippedCount++; return; // نوع جيومتري مش مدعوم (زي Point أو LineString)
+    }
+    if(rings.length===0){ skippedCount++; return; }
+
+    let zone = state.zones.find(z=>z.name===String(zoneName) && (!z.repCode || z.repCode===state.repCode));
+    if(zone){
+      zone.rings = rings;
+      delete zone.polygon; // القيمة القديمة (حلقة واحدة بس) بقت مش محتاجينها بعد دعم الـ MultiPolygon
+      updatedCount++;
+    } else {
+      zone = {
+        id: 'z_geo_'+Date.now()+'_'+i,
+        name: String(zoneName),
+        color: ZONE_COLORS[state.zones.length % ZONE_COLORS.length],
+        rings: rings,
+      };
+      if(state.repCode!=='ALL') zone.repCode = state.repCode;
+      state.zones.push(zone);
+      createdCount++;
+    }
+
+    // نربط أي محل موجود فعلاً جوه أي حتة من حدود المربع (بكل أجزائه) بالمربع ده تلقائي
+    state.stores.forEach(s=>{
+      if(zone.repCode && s.repCode!==zone.repCode) return;
+      if(pointInZoneRings(s.lat, s.lng, rings)){
+        s.zoneId = zone.id;
+        matchedStoresCount++;
+      }
+    });
+  });
+
+  saveZones();
+  saveStores();
+  renderZonesList();
+  renderZones();
+  renderMarkers();
+  let msg = `اتضاف ${createdCount} مربع جديد، اتحدّث ${updatedCount}، واترَبط ${matchedStoresCount} محل بالمربعات دي`;
+  if(skippedCount>0) msg += `. اتجاهل ${skippedCount} عنصر (جيومتري مش مدعوم أو ناقص)`;
+  showToast(msg);
+}
+
 document.getElementById('btn-import-zone-geojson').addEventListener('click', ()=>{
   document.getElementById('zone-geojson-file').click();
 });
@@ -2824,66 +3070,33 @@ document.getElementById('zone-geojson-file').addEventListener('change', async (e
   try{
     const text = await file.text();
     const geojson = JSON.parse(text);
-    const features = geojson.features || [];
-    if(features.length===0){ showToast('الملف مفيهوش أي مربعات (features)'); return; }
-
-    let createdCount = 0, updatedCount = 0, matchedStoresCount = 0, skippedCount = 0;
-    features.forEach((feat, i)=>{
-      if(!feat.geometry) { skippedCount++; return; }
-      const props = feat.properties || {};
-      const zoneName = props.conc || props.ZONE_NAME || props.name || props.Name || `مربع مستورد ${i+1}`;
-      // بنقلب [lng,lat] بتاعة GeoJSON لـ [lat,lng] اللي Leaflet محتاجها
-      let rings = [];
-      if(feat.geometry.type === 'Polygon'){
-        const ring = (feat.geometry.coordinates[0] || []).map(c=>[c[1], c[0]]);
-        if(ring.length>=3) rings = [ring];
-      } else if(feat.geometry.type === 'MultiPolygon'){
-        // كل جزء منفصل جغرافيًا (زي المربعات الحقيقية من ArcMap) بيتحفظ كحلقة مستقلة
-        rings = (feat.geometry.coordinates || [])
-          .map(poly => (poly[0] || []).map(c=>[c[1], c[0]]))
-          .filter(ring => ring.length>=3);
-      } else {
-        skippedCount++; return; // نوع جيومتري مش مدعوم (زي Point أو LineString)
-      }
-      if(rings.length===0){ skippedCount++; return; }
-
-      let zone = state.zones.find(z=>z.name===String(zoneName) && (!z.repCode || z.repCode===state.repCode));
-      if(zone){
-        zone.rings = rings;
-        delete zone.polygon; // القيمة القديمة (حلقة واحدة بس) بقت مش محتاجينها بعد دعم الـ MultiPolygon
-        updatedCount++;
-      } else {
-        zone = {
-          id: 'z_geo_'+Date.now()+'_'+i,
-          name: String(zoneName),
-          color: ZONE_COLORS[state.zones.length % ZONE_COLORS.length],
-          rings: rings,
-        };
-        if(state.repCode!=='ALL') zone.repCode = state.repCode;
-        state.zones.push(zone);
-        createdCount++;
-      }
-
-      // نربط أي محل موجود فعلاً جوه أي حتة من حدود المربع (بكل أجزائه) بالمربع ده تلقائي
-      state.stores.forEach(s=>{
-        if(zone.repCode && s.repCode!==zone.repCode) return;
-        if(pointInZoneRings(s.lat, s.lng, rings)){
-          s.zoneId = zone.id;
-          matchedStoresCount++;
-        }
-      });
-    });
-
-    saveZones();
-    saveStores();
-    renderZonesList();
-    renderZones();
-    renderMarkers();
-    let msg = `اتضاف ${createdCount} مربع جديد، اتحدّث ${updatedCount}، واترَبط ${matchedStoresCount} محل بالمربعات دي`;
-    if(skippedCount>0) msg += `. اتجاهل ${skippedCount} عنصر (جيومتري مش مدعوم أو ناقص)`;
-    showToast(msg);
+    importZoneFeatures(geojson.features || []);
   }catch(err){
     showToast('حصل مشكلة في قراءة الملف — اتأكد إنه GeoJSON سليم');
+  }
+});
+
+document.getElementById('btn-import-zone-shapefile').addEventListener('click', ()=>{
+  document.getElementById('zone-shapefile-file').click();
+});
+document.getElementById('zone-shapefile-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  if(typeof shp !== 'function'){
+    showToast('مكتبة قراءة Shapefile ما اتحمّلتش — اتأكد إن عندك نت وجرب تاني');
+    return;
+  }
+  showToast('بيتحول الملف من Shapefile لـ GeoJSON...');
+  try{
+    const buf = await file.arrayBuffer();
+    const result = await shp(buf); // بيرجع FeatureCollection واحد، أو أكتر من واحد لو الملف فيه أكتر من طبقة
+    const collections = Array.isArray(result) ? result : [result];
+    let allFeatures = [];
+    collections.forEach(fc => { if(fc && fc.features) allFeatures = allFeatures.concat(fc.features); });
+    importZoneFeatures(allFeatures);
+  }catch(err){
+    showToast('حصل مشكلة في قراءة ملف الـ Shapefile — اتأكد إن الـ zip فيه .shp و.dbf و.shx مع بعض');
   }
 });
 
@@ -2950,7 +3163,7 @@ window.openReplaceFlow = async function(storeId){
   if(!state.isAdmin){
     if(!myLocation){
       showToast('لازم تدوس "موقعي" الأول عشان نحدد مكانك بالظبط، وبعدين تقدر تضيف المحل البديل');
-      logAlert('محاولة إضافة من غير لوكيشن', 'المندوب حاول يضيف محل بديل من غير ما يحدد موقعه', store ? store.code : '', store ? store.name : '');
+      logAlert('محاولة إضافة من غير لوكيشن', 'الباحث حاول يضيف محل بديل من غير ما يحدد موقعه', store ? store.code : '', store ? store.name : '');
       return;
     }
     if(myLocation.approximate){
@@ -3201,7 +3414,7 @@ async function getNextAutoCode(repCode, lat, lng){
     if(blockCode!=null) return blockCode;
   }
 
-  // 2) مفيش مربع قريب نسبها له (منطقة جديدة تمامًا) — التكويد المعتاد على مستوى المندوب
+  // 2) مفيش مربع قريب نسبها له (منطقة جديدة تمامًا) — التكويد المعتاد على مستوى الباحث
   const primary = primaryCodeRangeFor(repCode);
   if(!primary) return null; // e.g. admin with no specific rep context
   let ranges = [primary];
@@ -3291,7 +3504,7 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
 
   const autoCode = await getNextAutoCode(state.repCode, lat, lng);
   document.getElementById('store-code').value = autoCode!=null ? String(autoCode) : '';
-  if(autoCode==null) showToast('معرفتش أحدد كود تلقائي — جرب من حساب مندوب محدد بدل "الكل"');
+  if(autoCode==null) showToast('معرفتش أحدد كود تلقائي — جرب من حساب باحث محدد بدل "الكل"');
 }
 document.getElementById('store-cancel').addEventListener('click', ()=>{
   overlayStore.classList.remove('show');
@@ -3461,7 +3674,8 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   try{
     for(let i=0;i<currentStorePhotos.length;i++){
       saveBtn.textContent = `بيرفع الصورة ${i+1} من ${currentStorePhotos.length}...`;
-      const url = await uploadStorePhoto(currentStorePhotos[i], 'صورة_المحل_' + blockLabelFromZoneId(matchedZoneId, code) + (currentStorePhotos.length>1 ? '_'+(i+1) : ''), code);
+      const matchedZoneName = matchedZoneId ? (state.zones.find(z=>z.id===matchedZoneId)||{}).name || '' : '';
+      const url = await uploadStorePhoto(currentStorePhotos[i], 'صورة_المحل_' + blockLabelFromZoneId(matchedZoneId, code) + (currentStorePhotos.length>1 ? '_'+(i+1) : ''), code, matchedZoneName);
       photoUrls.push(url);
     }
   }catch(err){
@@ -3485,24 +3699,22 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   overlayStore.classList.remove('show');
   logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}${state.isAdmin?' — سُجّل تحت '+ownerRep:''}`, newStore);
   // بيانات الـ checklist والصور بتتسجل كرد على استبيان "إضافة عميل جديد" المدمج، عشان تقدر ترجعله تعدله بعدين من غير قيد اللوكيشن
-  fetch(ACTION_LOG_ENDPOINT, {
-    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({
-      kind:'submitSurveyResponse',
-      project: currentProject,
-      repCode: ownerRep,
-      storeCode: code,
-      storeName: name,
-      surveyId: BUILT_IN_ADD_STORE_SURVEY_ID,
-      answers: {
-        q_strong: strongStore,
-        q_jhina: jhinaFridge,
-        q_energy: energyDrinks,
-        q_reason: addReason,
-        q_photos: photoUrls,
-      },
-    }),
-  }).catch(()=>{});
+  postToServerOrQueue({
+    kind:'submitSurveyResponse',
+    project: currentProject,
+    repCode: ownerRep,
+    storeCode: code,
+    storeName: name,
+    zoneName: matchedZoneId ? (state.zones.find(z=>z.id===matchedZoneId)||{}).name || '' : '',
+    surveyId: BUILT_IN_ADD_STORE_SURVEY_ID,
+    answers: {
+      q_strong: strongStore,
+      q_jhina: jhinaFridge,
+      q_energy: energyDrinks,
+      q_reason: addReason,
+      q_photos: photoUrls,
+    },
+  });
 
   if(assignment.suspended){
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
@@ -3523,18 +3735,46 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   const wb = XLSX.read(buf, {type:'array'});
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+
+  // الأعمدة المتوقعة بالترتيب ده: كود المحل | اسم المحل | اسم المربع (اختياري) | اسم المنطقة (اختياري) | كود الباحث (اختياري) | Lat | Lng
+  // لو عمود "كود الباحث" فيه قيم ومحتاجين ملف واحد لكل الباحثين مع بعض، لازم تكون فاتح شاشة "الكل" كأدمن.
+  const multiRepFile = rows.slice(1).some(r => r && r[4] != null && String(r[4]).trim()!=='');
+  if(multiRepFile && state.repCode!=='ALL'){
+    showToast('الملف ده فيه عمود "كود الباحث" بقيم مختلفة — لازم تفتح شاشة "الكل" الأول عشان يوزّع كل صف على صاحبه صح');
+    e.target.value = '';
+    return;
+  }
+
   const existingCodes = new Set(state.stores.map(s => String(s.code).trim().toLowerCase()));
   const usedNumericCodes = new Set(state.stores.map(s=>parseInt(s.code,10)).filter(c=>!isNaN(c)));
-  let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0;
+  let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0, zoneCreated = 0;
   rows.forEach((row, idx)=>{
     if(idx===0) return; // skip header
-    const [name, code, lat, lng] = row;
+    const [code, name, zoneNameCol, areaNameCol, repCodeCol, lat, lng] = row;
     if(!name || lat==null || lng==null) return;
     const latN = parseFloat(lat), lngN = parseFloat(lng);
     if(isNaN(latN) || isNaN(lngN)) return;
 
-    // بنحدد المربع اللي المحل واقع جواه فعليًا لو عندنا حدود GIS حقيقية مستوردة (زون بوليجون)
-    const zoneId = findZoneIdByPolygon(latN, lngN);
+    const rowRepCode = (repCodeCol!=null && String(repCodeCol).trim()!=='') ? String(repCodeCol).trim() : (state.repCode!=='ALL' ? state.repCode : null);
+
+    // 1) لو اسم المربع مكتوب في الملف، نحاول الأول نلاقي مربع موجود بنفس الاسم (لنفس الباحث) — override يدوي
+    let zoneId = null;
+    const zoneNameStr = (zoneNameCol!=null ? String(zoneNameCol).trim() : '');
+    if(zoneNameStr){
+      let zone = state.zones.find(z => z.name===zoneNameStr && (!z.repCode || z.repCode===rowRepCode));
+      if(!zone){
+        // مفيش مربع بالاسم ده لسه — نعمله جديد (بيتفيد بيه اسم المنطقة لو موجود ومكملش اسم المربع أصلاً رقم)
+        const finalName = (areaNameCol && !zoneNameStr.includes(String(areaNameCol).trim())) ? `${String(areaNameCol).trim()}_${zoneNameStr}` : zoneNameStr;
+        zone = {id:'z_imp_'+Date.now()+'_'+idx, name: finalName, color: ZONE_COLORS[state.zones.length % ZONE_COLORS.length]};
+        if(rowRepCode) zone.repCode = rowRepCode;
+        state.zones.push(zone);
+        zoneCreated++;
+      }
+      zoneId = zone.id;
+    } else {
+      // 2) مفيش اسم مربع في الملف — بنحدد المربع تلقائي لو المحل وقع جوه حدود GIS مستوردة قبل كده
+      zoneId = findZoneIdByPolygon(latN, lngN);
+    }
     if(zoneId) matchedToBlock++;
 
     let codeStr;
@@ -3551,17 +3791,21 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
     const numericCode = parseInt(codeStr, 10);
     if(!isNaN(numericCode)) usedNumericCodes.add(numericCode);
     if(isOutsideEgypt(latN,lngN)) outOfBounds++;
-    state.stores.push({
+    const newStore = {
       id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'_'+idx,
       name:String(name).trim(), code: codeStr,
       lat:latN, lng:lngN, status:'valid', assignment:null, zoneId: zoneId, origin:'new',
-    });
+    };
+    if(rowRepCode) newStore.repCode = rowRepCode;
+    state.stores.push(newStore);
     added++;
   });
+  if(zoneCreated>0){ saveZones(); renderZonesList(); }
   saveStores();
   renderMarkers();
   let msg = `اتضاف ${added} محل من الملف`;
-  if(matchedToBlock>0) msg += `، ${matchedToBlock} منهم اترَبط بمربع تلقائي حسب حدود GIS`;
+  if(zoneCreated>0) msg += `، اتعمل ${zoneCreated} مربع جديد من أسماء مكتوبة في الملف`;
+  if(matchedToBlock>0) msg += `، ${matchedToBlock} منهم اترَبط بمربع`;
   if(autoCoded>0) msg += `، ${autoCoded} كود اتحسب تلقائي`;
   if(skippedDup>0) msg += `، واتجاهل ${skippedDup} لأن الكود متكرر`;
   if(outOfBounds>0) msg += `. تنبيه: ${outOfBounds} منهم بإحداثيات غريبة برا حدود مصر، راجعهم`;
@@ -3575,7 +3819,7 @@ document.getElementById('btn-master-update').addEventListener('click', ()=>{
 });
 
 document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
-  const warning = 'تحذير خطير:\n\nده هيمسح كل المحلات وكل المربعات (النطاقات) لكل الـ44 مندوب نهائيًا، وهيبدأ الخريطة فاضية تمامًا من الأول.\n\nهياخد باك أب لكل مندوب قبل المسح تقدر تسترجعه بعدين من "استرجاع نسخة"، لكن الأفضل تتأكد إنك عايز فعلاً تعمل كده.\n\nمتأكد عايز تكمل؟';
+  const warning = 'تحذير خطير:\n\nده هيمسح كل المحلات وكل المربعات (النطاقات) لكل الـ44 باحث نهائيًا، وهيبدأ الخريطة فاضية تمامًا من الأول.\n\nهياخد باك أب لكل باحث قبل المسح تقدر تسترجعه بعدين من "استرجاع نسخة"، لكن الأفضل تتأكد إنك عايز فعلاً تعمل كده.\n\nمتأكد عايز تكمل؟';
   if(!confirm(warning)) return;
   const typed = prompt('اكتب "تصفية كاملة" بالظبط عشان تأكد (من غير علامات تنصيص):');
   if(typed !== 'تصفية كاملة'){
@@ -3589,33 +3833,22 @@ document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
   doneActions.style.display = 'none';
   overlay.classList.add('show');
 
-  const repCodes = [];
-  for(let i=1;i<=44;i++) repCodes.push('TDM'+i);
+  progress.textContent = 'بيعمل نسخة احتياطية من كل حاجة قبل التصفية...';
+  try{
+    const existingStores = await loadStores(state.repCode);
+    const existingZones = await loadZones(state.repCode);
+    await window.storage.set(pk('backup:SHARED'), JSON.stringify({
+      stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
+    }), true);
+  }catch(bErr){ console.error('backup failed', bErr); }
 
-  let done = 0;
-  for(const rep of repCodes){
-    progress.textContent = `بيتصفّى ${rep}... (${done+1} من ${repCodes.length})`;
-    try{
-      const existingStores = await loadStores(rep);
-      const existingZones = await loadZones(rep);
-      try{
-        await window.storage.set(pk('backup:'+rep), JSON.stringify({
-          stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
-        }), true);
-      }catch(bErr){ console.error('backup failed for', rep, bErr); }
+  await window.storage.set(pk('stores:SHARED'), JSON.stringify([]), true);
+  await window.storage.set(pk('zones:SHARED'), JSON.stringify([]), true);
 
-      await window.storage.set(pk('stores:'+rep), JSON.stringify([]), true);
-      await window.storage.set(pk('zones:'+rep), JSON.stringify([]), true);
-    }catch(err){
-      console.error('full reset failed for', rep, err);
-    }
-    done++;
-  }
-
-  progress.textContent = `تمت التصفية الكاملة لـ ${repCodes.length} مندوب ✓ الخريطة فاضية دلوقتي، وفيه باك أب محفوظ لكل مندوب لو احتجته تسترجعه.`;
+  progress.textContent = 'تمت التصفية الكاملة ✓ الخريطة فاضية دلوقتي لكل الباحثين، وفيه باك أب محفوظ لو احتجته تسترجعه.';
   doneActions.style.display = 'flex';
 
-  // لو الأدمن فاتح نظرة عامة أو مندوب معين دلوقتي، نحدّث الخريطة قدامه فورًا
+  // لو الأدمن فاتح نظرة عامة أو باحث معين دلوقتي، نحدّث الخريطة قدامه فورًا
   if(state.repCode){
     state.stores = await loadStores(state.repCode==='ALL' ? state.repCode : state.repCode);
     state.zones = await loadZones(state.repCode);
@@ -3656,7 +3889,7 @@ async function getDisabledReps(){
 }
 
 document.getElementById('btn-add-rep').addEventListener('click', async ()=>{
-  const codeInput = prompt('اكتب كود المندوب الجديد (مثال: TDM45 أو أي اسم تاني مميز):');
+  const codeInput = prompt('اكتب كود الباحث الجديد (مثال: TDM45 أو أي اسم تاني مميز):');
   if(!codeInput) return;
   const code = codeInput.trim().toUpperCase();
   if(!code || code==='ADMIN' || code==='ALL'){
@@ -3668,7 +3901,7 @@ document.getElementById('btn-add-rep').addEventListener('click', async ()=>{
     showToast('الكود ده مستخدم بالفعل، اختار كود تاني');
     return;
   }
-  const password = prompt(`حط باسورد لـ "${code}" (أرقام أو حروف، المندوب هيستخدمه في الدخول):`);
+  const password = prompt(`حط باسورد لـ "${code}" (أرقام أو حروف، الباحث هيستخدمه في الدخول):`);
   if(!password || !password.trim()){
     showToast('لازم تحط باسورد');
     return;
@@ -3701,7 +3934,7 @@ document.getElementById('bulk-reps-file-input').addEventListener('change', async
     return;
   }
   const headerRow = rows[0];
-  const codeCol = findCol(headerRow, ['Code','كود','كود المندوب','Username','يوزر']);
+  const codeCol = findCol(headerRow, ['Code','كود','كود الباحث','Username','يوزر']);
   const passCol = findCol(headerRow, ['Password','باسورد','كلمة السر']);
   if(codeCol===-1 || passCol===-1){
     showToast('الملف لازم يكون فيه عمود Code وعمود Password (أو كود / باسورد)');
@@ -3730,7 +3963,7 @@ document.getElementById('bulk-reps-file-input').addEventListener('change', async
   try{
     await window.storage.set(pk('custom_reps'), JSON.stringify(customReps), true);
     addedCodes.forEach(addRepOptionToAllSelects);
-    showToast(`اتضاف ${added} مندوب جديد ✓${skipped>0 ? ` (اتجاهل ${skipped} صف - مكرر أو ناقص بيانات)` : ''}`);
+    showToast(`اتضاف ${added} باحث جديد ✓${skipped>0 ? ` (اتجاهل ${skipped} صف - مكرر أو ناقص بيانات)` : ''}`);
   }catch(err){
     customReps = customReps.filter(r=>!addedCodes.includes(r.code));
     showToast('حصلت مشكلة في الحفظ، جرب تاني');
@@ -3738,27 +3971,29 @@ document.getElementById('bulk-reps-file-input').addEventListener('change', async
 });
 
 document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
-  const repInput = prompt('اكتب كود المندوب اللي عايز تمسحه بالكامل (مثال: TDM12):');
+  const repInput = prompt('اكتب كود الباحث اللي عايز تمسحه بالكامل (مثال: TDM12):');
   if(!repInput) return;
   const rep = repInput.trim().toUpperCase();
   const existingUsers = buildUsers();
   if(rep==='ADMIN' || !existingUsers.includes(rep)){
-    showToast('الكود ده مش موجود في قايمة المناديب');
+    showToast('الكود ده مش موجود في قايمة الباحثين');
     return;
   }
-  const warning = `تحذير خطير:\n\nده هيمسح كل بيانات "${rep}" (المحلات + المربعات) نهائيًا، وهيوقف حسابه تمامًا من الدخول تاني على الابليكيشن.\n\nهياخد باك أب قبل المسح تقدر تسترجعه من "استرجاع نسخة"، بس الحساب هيفضل معطّل لحد ما تفعّله تاني من "تفعيل مندوب معطّل".\n\nمتأكد؟`;
+  const warning = `تحذير خطير:\n\nده هيمسح كل بيانات "${rep}" (المحلات + المربعات) نهائيًا، وهيوقف حسابه تمامًا من الدخول تاني على الابليكيشن.\n\nهياخد باك أب قبل المسح تقدر تسترجعه من "استرجاع نسخة"، بس الحساب هيفضل معطّل لحد ما تفعّله تاني من "تفعيل باحث معطّل".\n\nمتأكد؟`;
   if(!confirm(warning)) return;
   const typed = prompt(`اكتب "${rep}" بالظبط عشان تأكد:`);
   if(typed !== rep){ showToast('اتلغى — النص مطابقش، مفيش حاجة اتمسحت'); return; }
 
   try{
-    const existingStores = await loadStores(rep);
-    const existingZones = await loadZones(rep);
+    const allStores = await loadStores(rep);
+    const allZones = await loadZones(rep);
+    const repStores = allStores.filter(s=>s.repCode===rep);
+    const repZones = allZones.filter(z=>z.repCode===rep);
     await window.storage.set(pk('backup:'+rep), JSON.stringify({
-      stores: existingStores, zones: existingZones, savedAt: new Date().toISOString(),
+      stores: repStores, zones: repZones, savedAt: new Date().toISOString(),
     }), true);
-    await window.storage.set(pk('stores:'+rep), JSON.stringify([]), true);
-    await window.storage.set(pk('zones:'+rep), JSON.stringify([]), true);
+    await window.storage.set(pk('stores:SHARED'), JSON.stringify(allStores.filter(s=>s.repCode!==rep)), true);
+    await window.storage.set(pk('zones:SHARED'), JSON.stringify(allZones.filter(z=>z.repCode!==rep)), true);
 
     const disabled = await getDisabledReps();
     if(!disabled.includes(rep)) disabled.push(rep);
@@ -3776,7 +4011,7 @@ document.getElementById('btn-reenable-rep').addEventListener('click', async ()=>
     showToast('مفيش حسابات معطّلة دلوقتي');
     return;
   }
-  const repInput = prompt(`الحسابات المعطّلة دلوقتي: ${disabled.join('، ')}\n\nاكتب كود المندوب اللي عايز تفعّل حسابه تاني:`);
+  const repInput = prompt(`الحسابات المعطّلة دلوقتي: ${disabled.join('، ')}\n\nاكتب كود الباحث اللي عايز تفعّل حسابه تاني:`);
   if(!repInput) return;
   const rep = repInput.trim().toUpperCase();
   if(!disabled.includes(rep)){
@@ -3805,7 +4040,11 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     const backup = JSON.parse(res.value);
     if(!confirm(`هيتم استرجاع بيانات ${rep} لآخر نسخة قبل التحديث (بتاريخ ${new Date(backup.savedAt).toLocaleString('ar-EG')}). أي تعديلات حصلت بعد كده هتتمسح. متأكد؟`)) return;
 
-    await window.storage.set(pk('stores:'+rep), JSON.stringify(backup.stores||[]), true);
+    // بيانات المحلات بقت في حوض مشترك، فالاسترجاع بيستبدل بس المحلات اللي كانت لصاحب الباحث ده
+    const currentShared = await loadStores(rep);
+    const otherReps = currentShared.filter(s=>s.repCode!==rep);
+    const restoredStores = (backup.stores||[]).map(s=>Object.assign({}, s, {repCode: rep}));
+    await window.storage.set(pk('stores:SHARED'), JSON.stringify(otherReps.concat(restoredStores)), true);
     await window.storage.set(pk('zones:'+rep), JSON.stringify(backup.zones||[]), true);
     hint.textContent = `تم استرجاع بيانات ${rep} بنجاح.`;
 
@@ -3814,12 +4053,7 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
       state.zones = await loadZones(rep);
       renderMarkers();
     } else if(state.repCode==='ALL'){
-      state.stores = [];
-      for(let i=1;i<=44;i++){
-        const code = 'TDM'+i;
-        const s = await loadStores(code);
-        s.forEach(st => state.stores.push(Object.assign({}, st, {repCode: code})));
-      }
+      state.stores = await loadStores(rep);
       renderMarkers();
     }
   }catch(err){
@@ -3925,17 +4159,16 @@ document.getElementById('master-file-input').addEventListener('change', async (e
   const repCodes = Object.keys(byRep);
   let done = 0;
   let totalRemoved = 0;
+  const sharedStores = await loadStores(state.repCode); // الحوض المشترك كله، مرة واحدة بس
+  try{
+    await window.storage.set(pk('backup:SHARED'), JSON.stringify({
+      stores: sharedStores, zones: await loadZones(state.repCode), savedAt: new Date().toISOString(),
+    }), true);
+  }catch(bErr){ console.error('backup failed before master update', bErr); }
   for(const rep of repCodes){
     progress.textContent = `بتحدث ${rep}... (${done+1} من ${repCodes.length})`;
     try{
-      const existing = await loadStores(rep);
-      const existingZones = await loadZones(rep);
-      try{
-        await window.storage.set(pk('backup:'+rep), JSON.stringify({
-          stores: existing, zones: existingZones, savedAt: new Date().toISOString(),
-        }), true);
-      }catch(bErr){ console.error('backup failed for', rep, bErr); }
-
+      const existing = sharedStores.filter(s=>s.repCode===rep);
       const byCode = new Map(existing.map(s=>[String(s.code), s]));
       let removedCount = 0;
       byRep[rep].forEach(inc=>{
@@ -3943,9 +4176,9 @@ document.getElementById('master-file-input').addEventListener('change', async (e
         if(byCode.has(key)){
           const ex = byCode.get(key);
           if(inc.assignment === null){
-            // الشيت الرئيسي الجديد بيقول صفر أيام زيارة للمحل ده = اتشال فعليًا، نشيله من الخريطة دلوقتي
-            const pos = existing.indexOf(ex);
-            if(pos !== -1) existing.splice(pos, 1);
+            // الشيت الرئيسي الجديد بيقول صفر أيام زيارة للمحل ده = اتشال فعليًا، نشيله من الحوض المشترك دلوقتي
+            const pos = sharedStores.indexOf(ex);
+            if(pos !== -1) sharedStores.splice(pos, 1);
             byCode.delete(key);
             removedCount++;
             return;
@@ -3955,35 +4188,27 @@ document.getElementById('master-file-input').addEventListener('change', async (e
           if(inc.storeType) ex.storeType = inc.storeType;
         } else {
           if(inc.assignment === null) return; // متتضافش من الأول محلات من غير أيام زيارة
-          existing.push(inc);
+          inc.repCode = rep;
+          sharedStores.push(inc);
           byCode.set(key, inc);
         }
       });
-      await window.storage.set(pk('stores:'+rep), JSON.stringify(existing), true);
       totalRemoved += removedCount;
     }catch(err){
       console.error('failed updating', rep, err);
     }
     done++;
   }
+  try{ await window.storage.set(pk('stores:SHARED'), JSON.stringify(sharedStores), true); }
+  catch(e){ localMirrorSet(pk('stores:SHARED'), JSON.stringify(sharedStores)); markKeyDirty(pk('stores:SHARED')); }
 
-  progress.textContent = `تم التحديث لـ ${repCodes.length} مندوب بنجاح ✓` +
+  progress.textContent = `تم التحديث لـ ${repCodes.length} باحث بنجاح ✓` +
     (totalRemoved>0 ? ` — اتشال ${totalRemoved} محل من الخريطة (كان صفر أيام زيارة في الشيت الجديد).` : '') +
     (outOfBoundsCount>0 ? ` تنبيه: ${outOfBoundsCount} محل بإحداثيات غريبة برا حدود مصر تقريبًا، راجعهم.` : '');
   doneActions.style.display = 'flex';
 
-  if(state.repCode==='ALL'){
-    state.stores = [];
-    for(let i=1;i<=44;i++){
-      const code = 'TDM'+i;
-      const s = await loadStores(code);
-      s.forEach(st => state.stores.push(Object.assign({}, st, {repCode: code})));
-    }
-    renderMarkers();
-  } else if(byRep[state.repCode]){
-    state.stores = await loadStores(state.repCode);
-    renderMarkers();
-  }
+  state.stores = await loadStores(state.repCode);
+  renderMarkers();
 });
 
 /* ===================== Export Excel ===================== */
@@ -4053,14 +4278,12 @@ async function runBackupExport(isAuto){
   let payload;
   const dateStr = new Date().toISOString().slice(0,10);
   let filename;
-  if(state.repCode==='ALL'){
-    const allData = {};
-    for(let i=1;i<=44;i++){
-      const code = 'TDM'+i;
-      allData[code] = { stores: await loadStores(code), zones: await loadZones(code) };
-    }
-    payload = { type:'ALL_REPS_BACKUP', savedAt: new Date().toISOString(), data: allData };
-    filename = `backup_ALL_${dateStr}_${Date.now()}.json`;
+  if(state.repCode==='ALL' || state.isAdmin){
+    payload = {
+      type:'SHARED_POOL_BACKUP', savedAt: new Date().toISOString(),
+      stores: await loadStores(state.repCode), zones: await loadZones(state.repCode),
+    };
+    filename = `backup_SHARED_${dateStr}_${Date.now()}.json`;
   } else {
     if(!state.repCode || !state.stores || !state.stores.length) return; // مفيش سيشن شغالة، متعملش نسخة فاضية
     payload = {
@@ -4119,34 +4342,45 @@ document.getElementById('backup-import-input').addEventListener('change', async 
   try{
     const text = await file.text();
     const payload = JSON.parse(text);
-    if(payload.type === 'SINGLE_REP_BACKUP'){
-      if(payload.repCode && payload.repCode !== state.repCode){
-        if(!confirm(`الملف ده نسخة احتياطية لـ ${payload.repCode} مش لـ ${state.repCode}. عايز تستوردها هنا برضو؟`)) return;
-      } else if(!confirm(`هيتم استبدال بياناتك الحالية بالنسخة المحفوظة بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. متأكد؟`)) return;
+    if(payload.type === 'SHARED_POOL_BACKUP'){
+      if(!confirm(`هيتم استبدال كل بيانات المحلات والمربعات المشتركة بالنسخة المحفوظة بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. متأكد؟`)) return;
       state.stores = payload.stores || [];
       state.zones = payload.zones || [];
+      await saveStores(); await saveZones();
+      renderMarkers();
+      showToast('اترجعت النسخة الاحتياطية المشتركة بنجاح');
+    } else if(payload.type === 'SINGLE_REP_BACKUP'){
+      const targetRep = payload.repCode || state.repCode;
+      if(!confirm(`هيتم استبدال محلات ومربعات "${targetRep}" بس بالنسخة المحفوظة بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. متأكد؟`)) return;
+      const allStores = await loadStores(state.repCode);
+      const allZones = await loadZones(state.repCode);
+      const restoredStores = (payload.stores||[]).map(s=>Object.assign({}, s, {repCode: targetRep}));
+      const restoredZones = (payload.zones||[]).map(z=>Object.assign({}, z, {repCode: targetRep}));
+      state.stores = allStores.filter(s=>s.repCode!==targetRep).concat(restoredStores);
+      state.zones = allZones.filter(z=>z.repCode!==targetRep).concat(restoredZones);
       if(payload.currentWeek) weekSelect.value = payload.currentWeek;
       await saveStores(); await saveZones(); await saveCurrentWeek();
       renderMarkers();
       showToast('اترجعت النسخة الاحتياطية بنجاح');
     } else if(payload.type === 'ALL_REPS_BACKUP'){
-      if(!confirm(`الملف ده نسخة شاملة لكل المناديب بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. هتستبدل بيانات كل المناديب الموجودين في الملف. متأكد؟`)) return;
+      if(!confirm(`الملف ده نسخة شاملة لكل الباحثين بتاريخ ${new Date(payload.savedAt).toLocaleString('ar-EG')}. هتستبدل بيانات كل الباحثين الموجودين في الملف. متأكد؟`)) return;
+      const mergedStores = [];
+      const mergedZones = [];
       for(const [rep, d] of Object.entries(payload.data)){
-        await window.storage.set(pk('stores:'+rep), JSON.stringify(d.stores||[]), true);
-        await window.storage.set(pk('zones:'+rep), JSON.stringify(d.zones||[]), true);
+        (d.stores||[]).forEach(s=>mergedStores.push(Object.assign({}, s, {repCode: rep})));
+        (d.zones||[]).forEach(z=>mergedZones.push(Object.assign({}, z, {repCode: rep})));
       }
-      showToast('اترجعت النسخة الشاملة لكل المناديب بنجاح');
-      if(state.repCode==='ALL'){
-        state.stores = [];
-        for(let i=1;i<=44;i++){
-          const code = 'TDM'+i;
-          const s = await loadStores(code);
-          s.forEach(st => state.stores.push(Object.assign({}, st, {repCode: code})));
-        }
-      } else {
-        state.stores = await loadStores(state.repCode);
-        state.zones = await loadZones(state.repCode);
-      }
+      // بيانات المحلات/المربعات بقت في حوض مشترك — النسخة دي بتستبدل بس محلات الباحثين المذكورين في الملف
+      const repsInFile = Object.keys(payload.data);
+      const currentShared = await loadStores(state.repCode);
+      const currentZones = await loadZones(state.repCode);
+      const keptStores = currentShared.filter(s=>!repsInFile.includes(s.repCode));
+      const keptZones = currentZones.filter(z=>!repsInFile.includes(z.repCode));
+      await window.storage.set(pk('stores:SHARED'), JSON.stringify(keptStores.concat(mergedStores)), true);
+      await window.storage.set(pk('zones:SHARED'), JSON.stringify(keptZones.concat(mergedZones)), true);
+      showToast('اترجعت النسخة الشاملة لكل الباحثين بنجاح');
+      state.stores = await loadStores(state.repCode);
+      state.zones = await loadZones(state.repCode);
       renderMarkers();
     } else {
       showToast('الملف ده مش نسخة احتياطية معروفة');
