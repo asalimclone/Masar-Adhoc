@@ -27,7 +27,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
 <script>
-window.__SEED_DATA__ = {"TDM12":[
+window.__SEED_DATA__ = {"ADH12":[
   {"id":"demo_1","name":"سوبر ماركت الأمل","code":"501","lat":30.0300,"lng":31.4700,"status":"valid","assignment":{"freq":"weekly","weekGroup":null,"days":[1]},"zoneId":"demo_block_a","origin":"old"},
   {"id":"demo_2","name":"بقالة النور","code":"502","lat":30.0303,"lng":31.4704,"status":"valid","assignment":{"freq":"weekly","weekGroup":null,"days":[1]},"zoneId":"demo_block_a","origin":"old"},
   {"id":"demo_3","name":"ماركت المعادي","code":"503","lat":30.0298,"lng":31.4696,"status":"valid","assignment":{"freq":"weekly","weekGroup":null,"days":[1]},"zoneId":"demo_block_a","origin":"old"},
@@ -294,21 +294,28 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       <div class="menu-wrap">
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
         <div class="dropdown-menu" id="dropdown-menu">
-          <button class="dd-item" id="btn-export"><span>⇩</span> تصدير إكسل</button>
-          <button class="dd-item" id="btn-zones"><span>▦</span> المربعات</button>
-          <div class="dd-divider" id="dd-admin-divider" style="display:none;"></div>
+          <button class="dd-item admin-only" id="btn-export" style="display:none;"><span>⇩</span> تصدير إكسل</button>
+          <div class="dd-divider admin-only" id="dd-admin-divider" style="display:none;"></div>
           <button class="dd-item admin-only" id="btn-manage-surveys" style="display:none;"><span>📋</span> إدارة الاستبيانات</button>
 
-          <div class="dd-divider"></div>
-          <button class="dd-folder-toggle" id="dd-folder-projects-toggle" type="button">
+          <div class="dd-divider admin-only" id="dd-folder-zones-divider" style="display:none;"></div>
+          <button class="dd-folder-toggle admin-only" id="dd-folder-zones-toggle" type="button" style="display:none;">
+            <span class="dd-folder-arrow">▸</span> 📁 المربعات والمحلات
+          </button>
+          <div class="dd-folder-items admin-only" id="dd-folder-zones-items" style="display:none;">
+            <button class="dd-item dd-sub" id="btn-zones"><span>▦</span> المربعات</button>
+            <button class="dd-item dd-sub" id="btn-import"><span>⇪</span> رفع/تعديل المحلات (إكسل)</button>
+          </div>
+
+          <div class="dd-divider admin-only" id="dd-folder-projects-divider" style="display:none;"></div>
+          <button class="dd-folder-toggle admin-only" id="dd-folder-projects-toggle" type="button" style="display:none;">
             <span class="dd-folder-arrow">▸</span> 📁 إدارة المشاريع
           </button>
-          <div class="dd-folder-items" id="dd-folder-projects-items" style="display:none;">
+          <div class="dd-folder-items admin-only" id="dd-folder-projects-items" style="display:none;">
             <button class="dd-item dd-sub" id="btn-backup-export"><span>💾</span> نسخة احتياطية</button>
             <button class="dd-item dd-sub" id="btn-backup-import"><span>📂</span> استيراد نسخة</button>
-            <button class="dd-item admin-only dd-sub" id="btn-create-project" style="display:none;"><span>🗂️</span> إنشاء مشروع جديد</button>
-            <button class="dd-item admin-only dd-sub" id="btn-master-update" style="display:none;"><span>⟳</span> تحديث الشيت الرئيسي</button>
-            <button class="dd-item admin-only dd-sub" id="btn-import" style="display:none;"><span>⇪</span> استيراد إكسل</button>
+            <button class="dd-item dd-sub" id="btn-create-project"><span>🗂️</span> إنشاء مشروع جديد</button>
+            <button class="dd-item dd-sub" id="btn-master-update"><span>⟳</span> تحديث الشيت الرئيسي</button>
           </div>
 
           <div class="dd-divider admin-only" id="dd-folder-reps-divider" style="display:none;"></div>
@@ -357,12 +364,9 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       <input type="checkbox" id="toggle-live-track" style="margin:0;">
       🟢 متابعة لحظية للباحثين
     </label>
-    <label class="chip" style="gap:5px;display:none;">
-      الأسبوع الحالي:
-      <select id="current-week-select" style="border:none;background:transparent;font-weight:700;font-family:'IBM Plex Mono',monospace;font-size:12.5px;">
-        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-      </select>
-    </label>
+    <select id="current-week-select" style="display:none;">
+      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+    </select>
     <div class="search-wrap">
       <input type="text" id="search-box" placeholder="دور باسم المحل أو الكود...">
     </div>
@@ -409,6 +413,11 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <h3>إدارة الاستبيانات</h3>
     <p class="hint">الاستبيانات دي بتظهر لكل الباحثين لما يفتحوا أي محل، وممكن الباحث يملا نفس الاستبيان أكتر من مرة.</p>
     <div id="surveys-list" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>
+    <input type="file" id="survey-excel-file" accept=".xlsx,.xls" style="display:none;">
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn-ghost" id="btn-survey-sample-download">⬇️ تحميل نموذج مثال</button>
+      <button class="btn-ghost" id="btn-survey-excel-import">⇪ استيراد من إكسل</button>
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="surveys-close">قفل</button>
       <button class="btn-solid" id="btn-new-survey">+ استبيان جديد</button>
@@ -846,7 +855,7 @@ async function checkTerritoryConflict(repCode, lat, lng){
   ownStores.forEach(s=>{ const d=haversineMeters(lat,lng,s.lat,s.lng); if(d<ownMinDist) ownMinDist=d; });
 
   const otherCodes = [];
-  for(let i=1;i<=44;i++){ const code='TDM'+i; if(code!==repCode) otherCodes.push(code); }
+  for(let i=1;i<=44;i++){ const code='ADH'+i; if(code!==repCode) otherCodes.push(code); }
 
   const results = await Promise.all(otherCodes.map(async code=>{
     let list;
@@ -878,7 +887,7 @@ async function checkTerritoryConflict(repCode, lat, lng){
 
 function buildUsers(){
   const list = [];
-  for(let i=1;i<=44;i++) list.push('TDM'+i);
+  for(let i=1;i<=44;i++) list.push('ADH'+i);
   customReps.forEach(r=>list.push(r.code));
   list.push('admin');
   return list;
@@ -887,7 +896,7 @@ function passwordFor(code){
   if(code==='admin') return '1086';
   const custom = customReps.find(r=>r.code===code);
   if(custom) return custom.password;
-  const n = parseInt(code.replace('TDM',''),10);
+  const n = parseInt(code.replace('ADH',''),10);
   if(n>=1 && n<=9) return String(n).repeat(4);
   if(n>=10 && n<=44) return String(n).repeat(2);
   return null;
@@ -896,7 +905,7 @@ function passwordFor(code){
 const ZONE_COLORS = ['#0B4F4A','#E2A33B','#D6553F','#3E8E5A','#5B6FD6','#B15FC4','#1A9DA6','#C97A2B','#7A6FF0','#2E9E5B','#D64F8C','#4C8FBF','#9C6B2E','#6E9E2E'];
 
 const state = {
-  repCode: null,      // whose data is being edited (TDM code)
+  repCode: null,      // whose data is being edited (ADH code)
   isAdmin: false,
   readOnly: false,
   stores: [],
@@ -1338,6 +1347,96 @@ document.getElementById('btn-new-survey').addEventListener('click', ()=>{
   openSurveyBuilder(null);
 });
 
+/* ---------- استيراد استبيان من إكسل ---------- */
+const SURVEY_TYPE_LABEL_TO_KEY = {
+  'نعم/لا': 'yesno', 'نص': 'text', 'أرقام': 'number', 'اختيار واحد': 'select',
+  'اختيار متعدد': 'multiselect', 'تاريخ': 'date', 'صورة واحدة': 'photo',
+  'صور متعددة': 'multiphoto', 'الحالة النهائية': 'final_status',
+};
+
+document.getElementById('btn-survey-sample-download').addEventListener('click', ()=>{
+  const headers = ['رقم السؤال','نص السؤال','نوع السؤال','الاختيارات','إجباري؟','يسمح بالرفع من المعرض؟','شرط الظهور - أرقام الأسئلة','شرط الظهور - القيم المطلوبة'];
+  const sample = [
+    [1,'اسم المسؤول عن المحل','نص','', 'نعم','','',''],
+    [2,'هل المحل شغال دلوقتي؟','نعم/لا','', 'نعم','','',''],
+    [3,'سبب التوقف','اختيار واحد','إجازة|إغلاق نهائي|تجديد','لا','','2','لا'],
+    [4,'صورة واجهة المحل','صورة واحدة','', 'نعم','لا','2','نعم'],
+    [5,'هل هذه الحالة النهائية؟','الحالة النهائية','', 'نعم','','',''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
+  ws['!cols'] = [{wch:11},{wch:32},{wch:15},{wch:26},{wch:10},{wch:20},{wch:20},{wch:22}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'الأسئلة');
+  XLSX.writeFile(wb, 'نموذج_استيراد_استبيان.xlsx');
+});
+
+document.getElementById('btn-survey-excel-import').addEventListener('click', ()=>{
+  document.getElementById('survey-excel-file').click();
+});
+document.getElementById('survey-excel-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  const name = (prompt('اسم الاستبيان؟') || '').trim();
+  if(!name){ showToast('لازم تكتب اسم للاستبيان'); return; }
+
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheetName = wb.SheetNames.find(n=>n.trim()==='الأسئلة') || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1});
+
+    const rowNumToId = {}; // رقم السؤال في الإكسل -> id السؤال المتولّد
+    const questions = [];
+    let skipped = 0;
+    rows.forEach((row, idx)=>{
+      if(idx===0) return; // هيدر
+      const [qNum, text, typeLabel, optionsStr, requiredStr, allowGalleryStr, condQNumsStr, condValsStr] = row;
+      if(!text || !typeLabel) return;
+      const type = SURVEY_TYPE_LABEL_TO_KEY[String(typeLabel).trim()];
+      if(!type){ skipped++; return; }
+      const id = newQuestionId();
+      if(qNum!=null) rowNumToId[String(qNum).trim()] = id;
+
+      const q = {
+        id, text: String(text).trim(), type,
+        options: optionsStr ? String(optionsStr).split('|').map(s=>s.trim()).filter(Boolean) : [],
+        required: String(requiredStr||'').trim()==='نعم',
+        dependsOn: [],
+      };
+      if(type==='photo' || type==='multiphoto'){
+        q.allowGallery = String(allowGalleryStr||'').trim() !== 'لا'; // مفتوح افتراضيًا
+      }
+      if(condQNumsStr){
+        const qNums = String(condQNumsStr).split('|').map(s=>s.trim()).filter(Boolean);
+        const vals = String(condValsStr||'').split('|').map(s=>s.trim());
+        qNums.forEach((qn, i)=>{
+          const depId = rowNumToId[qn];
+          if(depId) q.dependsOn.push({questionId: depId, value: vals[i]||''});
+        });
+      }
+      questions.push(q);
+    });
+
+    if(questions.length===0){ showToast('مفيش أسئلة صالحة في الملف'); return; }
+    if(!questions.some(q=>q.type==='final_status')){
+      questions.push({id:newQuestionId(), text:'هل هذه الحالة النهائية؟', type:'final_status', options:[], required:true, dependsOn:[]});
+    }
+
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({kind:'saveSurvey', project: currentProject, survey:{id:null, name, questions}}),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'فشل الحفظ');
+    showToast(`اتضاف استبيان "${name}" من الإكسل (${questions.length} سؤال)` + (skipped>0 ? `، اتجاهل ${skipped} صف بنوع سؤال مش معروف` : ''));
+    await loadSurveysFromServer();
+    renderSurveysAdminList();
+  }catch(err){
+    showToast('حصلت مشكلة في قراءة الملف — راجع الصيغة زي النموذج');
+  }
+});
+
 /* ---------- أدمن: محرر الاستبيان ---------- */
 function newQuestionId(){ return 'q_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 
@@ -1515,6 +1614,15 @@ document.getElementById('survey-builder-save').addEventListener('click', async (
       showToast(`السؤال "${q.text}" محتاج اختيارات`); return;
     }
   }
+  // كل استبيان لازم يكون فيه سؤال "الحالة النهائية" آخر سؤال — لو مش موجود، بنضيفه تلقائي
+  const hasFinalStatus = state.surveyBuilderQuestions.some(q=>q.type==='final_status');
+  if(!hasFinalStatus){
+    state.surveyBuilderQuestions.push({
+      id: newQuestionId(), text: 'هل هذه الحالة النهائية؟', type: 'final_status',
+      options: [], required: true, dependsOn: [],
+    });
+  }
+
   const btn = document.getElementById('survey-builder-save');
   btn.disabled = true;
   btn.textContent = 'بيتحفظ...';
@@ -1613,9 +1721,18 @@ window.openSurveyFillForm = async function(surveyId){
         (survey.questions||[]).forEach(q=>{
           if((q.type==='photo' || q.type==='multiphoto') && currentFillAnswers[q.id]) currentFillExistingFolderUrl[q.id] = currentFillAnswers[q.id];
         });
-        showToast('اتحملت آخر إجابات اتسجلت للمحل ده، وتقدر تعدلها');
       }
     }catch(e){ /* لو فشل التحميل، هيبدأ فاضي عادي من غير ما نوقف الباحث */ }
+
+    // مسودة الإجابات (لو الباحث كان بدأ يجاوب قبل كده وقفل من غير ما يبعت) — أحدث من آخر إرسال رسمي، فبتاخد أولوية
+    try{
+      const draftRes = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyDraft&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
+      const draftData = await draftRes.json();
+      if(draftData.ok && draftData.draft && draftData.draft.answers){
+        currentFillAnswers = Object.assign({}, currentFillAnswers, draftData.draft.answers);
+        showToast('لقيت إجابات محفوظة من مرة سابقة، وكمّلناها من مكانها 📝');
+      }
+    }catch(e){ /* تجاهل، هيبدأ من آخر إرسال رسمي بس */ }
   }
   renderSurveyFillForm();
 };
@@ -1695,8 +1812,30 @@ function renderSurveyFillForm(){
   }).join('');
 }
 
+/* ---------- حفظ تلقائي لمسودة الإجابات (Draft Autosave) ----------
+   كل ما الباحث يجاوب على سؤال، بنستنى ثانية ونص من آخر تعديل وبعدين نبعت المسودة للسيرفر
+   (مش فورًا مع كل حرف، عشان منضربش السيرفر بطلبات كتير). لو قفل التطبيق قبل ما يبعت
+   نهائي، هيلاقي كل ده لما يرجع يفتح نفس الاستمارة تاني. */
+let draftSaveTimer = null;
+function queueDraftSave(){
+  if(!currentFillSurvey || !state.surveyFillStoreId || !ACTION_LOG_ENDPOINT) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(()=>{
+    const store = state.stores.find(s=>s.id===state.surveyFillStoreId);
+    if(!store) return;
+    fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        kind:'saveSurveyDraft', project: currentProject,
+        surveyId: currentFillSurvey.id, storeCode: store.code, answers: currentFillAnswers,
+      }),
+    }).catch(()=>{}); // فشل حفظ المسودة مش لازم يوقف الباحث، هيحاول تاني لما يجاوب على سؤال تاني
+  }, 1500);
+}
+
 window.setSurveyAnswer = function(qId, value, skipRerender){
   currentFillAnswers[qId] = value;
+  queueDraftSave();
   if(!skipRerender) renderSurveyFillForm();
 };
 window.toggleSurveyMultiAnswer = function(qId, optIdx, checked){
@@ -1708,6 +1847,7 @@ window.toggleSurveyMultiAnswer = function(qId, optIdx, checked){
   const i = arr.indexOf(option);
   if(checked && i===-1) arr.push(option);
   if(!checked && i!==-1) arr.splice(i,1);
+  queueDraftSave();
   renderSurveyFillForm();
 };
 window.addSurveyPhoto = function(qId, fileList, singleOnly){
@@ -1801,6 +1941,13 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
     }
 
     showToast(result.queued ? 'مفيش نت دلوقتي — الاستمارة محفوظة على جهازك وهتترفع تلقائي أول ما النت يرجع 📤' : 'اتبعت الاستبيان بنجاح ✓');
+    if(store && ACTION_LOG_ENDPOINT){
+      // الاستمارة اتبعتت كاملة (أو محفوظة في طابور هترفع أكيد) — المسودة المؤقتة مبقاش لها داعي
+      fetch(ACTION_LOG_ENDPOINT, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({kind:'clearSurveyDraft', project: currentProject, surveyId: survey.id, storeCode: store.code}),
+      }).catch(()=>{});
+    }
     document.getElementById('overlay-survey-fill').classList.remove('show');
   }catch(err){
     showToast('حصلت مشكلة في إرسال الاستبيان، جرب تاني');
@@ -1876,7 +2023,7 @@ const restoreRepSelect = document.getElementById('restore-rep-select');
 const storeOwnerRepSelect = document.getElementById('store-owner-rep-select');
 const projectSelect = document.getElementById('login-project');
 
-let customReps = []; // باحثين زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن TDM1-44 الأساسيين، ومنفصلين لكل مشروع
+let customReps = []; // باحثين زودهم الأدمن يدوي (كود + باسورد)، منفصلين عن ADH1-44 الأساسيين، ومنفصلين لكل مشروع
 async function loadCustomReps(){
   try{
     const res = await window.storage.get(pk('custom_reps'), true);
@@ -1899,10 +2046,10 @@ function resetRepSelectsToBase(){
   storeOwnerRepSelect.innerHTML = '';
   for(let i=1;i<=44;i++){
     const opt1 = document.createElement('option');
-    opt1.value = 'TDM'+i; opt1.textContent = 'TDM'+i;
+    opt1.value = 'ADH'+i; opt1.textContent = 'ADH'+i;
     restoreRepSelect.appendChild(opt1);
     const opt2 = document.createElement('option');
-    opt2.value = 'TDM'+i; opt2.textContent = 'TDM'+i;
+    opt2.value = 'ADH'+i; opt2.textContent = 'ADH'+i;
     storeOwnerRepSelect.appendChild(opt2);
   }
 }
@@ -2008,22 +2155,26 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
 
   const showAdminEdit = state.isAdmin;
   const adminOnlyIds = [
-    'btn-import','btn-master-update','btn-manage-surveys','btn-create-project',
+    'btn-export','btn-zones','btn-import','btn-master-update','btn-manage-surveys','btn-create-project',
+    'btn-backup-export','btn-backup-import',
     'btn-full-reset','btn-reset-sheets','btn-add-rep','btn-bulk-add-reps','btn-delete-rep','btn-reenable-rep',
-    'dd-admin-divider','dd-folder-reps-divider','dd-folder-reps-toggle','dd-folder-reps-items',
+    'dd-admin-divider',
+    'dd-folder-zones-divider','dd-folder-zones-toggle','dd-folder-zones-items',
+    'dd-folder-projects-divider','dd-folder-projects-toggle','dd-folder-projects-items',
+    'dd-folder-reps-divider','dd-folder-reps-toggle','dd-folder-reps-items',
     'toggle-live-track-label',
   ];
   adminOnlyIds.forEach(id => {
     const el = document.getElementById(id);
     if(!el) return;
     if(el.classList.contains('dd-folder-items')) el.style.display = 'none'; // مقفول افتراضيًا لحد ما يدوس عليه
-    else el.style.display = showAdminEdit ? (el.classList.contains('dd-folder-toggle') ? 'flex' : 'flex') : 'none';
+    else el.style.display = showAdminEdit ? 'flex' : 'none';
   });
 
-  weekSelect.value = state.readOnly ? '1' : await loadCurrentWeek(state.repCode);
+  weekSelect.value = '1';
   loadSurveysFromServer(); // بنجيب الاستبيانات في الخلفية، مش لازم نستنى
 
-  const editButtons = ['btn-add-mode','btn-export','btn-zones','btn-backup-import','btn-locate'];
+  const editButtons = ['btn-add-mode','btn-locate'];
   editButtons.forEach(id => document.getElementById(id).style.display = state.readOnly ? 'none' : 'flex');
 
   initMapOnce();
@@ -2656,7 +2807,7 @@ function startDataAutoRefresh(){
 
 function allKnownRepCodesForTracking(){
   const codes = [];
-  for(let i=1;i<=44;i++) codes.push('TDM'+i);
+  for(let i=1;i<=44;i++) codes.push('ADH'+i);
   customReps.forEach(r=>{ if(!codes.includes(r.code)) codes.push(r.code); });
   return codes;
 }
@@ -2797,20 +2948,9 @@ function maybeRemindMonthlyMinimum(){
 }
 setInterval(maybeRemindMonthlyMinimum, 15 * 60 * 1000); // كل 15 دقيقة طول ما الأبليكيشن فاتح
 
-/* ===================== Current week (persisted) ===================== */
+/* ===================== Current week (removed — كانت خاصية "الأسبوع الحالي" اللي اتشالت بطلب صريح) ===================== */
 const weekSelect = document.getElementById('current-week-select');
-async function loadCurrentWeek(repCode){
-  try{
-    const res = await window.storage.get(pk('currentWeek:'+repCode), true);
-    if(res && res.value) return res.value;
-  }catch(e){}
-  return '1';
-}
-async function saveCurrentWeek(){
-  if(state.repCode==='ALL') return;
-  try{ await window.storage.set(pk('currentWeek:'+state.repCode), weekSelect.value, true); }catch(e){}
-}
-weekSelect.addEventListener('change', saveCurrentWeek);
+weekSelect.value = '1'; // مفيش حفظ ولا اختيار للمستخدم بقى، قيمة ثابتة داخلية بس عشان باقي الكود اللي بيعتمد عليها (زي مسار المربع بالأسبوع) يفضل شغال
 
 function todayDayIndex(){
   // JS getDay(): 0=Sun..6=Sat -> our scheme: 0=Sat,1=Sun,2=Mon,...,6=Fri
@@ -3372,12 +3512,12 @@ document.getElementById('assign-save').addEventListener('click', ()=>{
 const overlayStore = document.getElementById('overlay-store');
 /* ===================== Auto store-code generation (per-rep ranges) ===================== */
 const CODE_BASE_START = 30000;
-const CODE_RANGE_SIZE = 201; // e.g. TDM1: 30000-30200, TDM2: 30201-30400 ...
+const CODE_RANGE_SIZE = 201; // e.g. ADH1: 30000-30200, ADH2: 30201-30400 ...
 const CODE_TOTAL_REPS = 44;
 const CODE_OVERFLOW_POOL_START = CODE_BASE_START + CODE_TOTAL_REPS * CODE_RANGE_SIZE;
 
 function primaryCodeRangeFor(repCode){
-  const n = parseInt(String(repCode).replace('TDM',''), 10);
+  const n = parseInt(String(repCode).replace('ADH',''), 10);
   if(isNaN(n)) return null;
   const start = CODE_BASE_START + (n-1) * CODE_RANGE_SIZE;
   return { start, end: start + CODE_RANGE_SIZE - 1 };
@@ -3678,7 +3818,7 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     }
   }
 
-  const ownerRep = state.isAdmin ? (storeOwnerRepSelect.value || 'TDM1') : state.repCode;
+  const ownerRep = state.isAdmin ? (storeOwnerRepSelect.value || 'ADH1') : state.repCode;
   const ownerStores = state.repCode==='ALL' ? state.stores.filter(s=>s.repCode===ownerRep) : state.stores;
 
   const {assignment, matchedZoneId, dayWasAutoMatched} = buildAutoAssignment(type, name, lat, lng, ownerStores);
@@ -3866,8 +4006,10 @@ document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
     }), true);
   }catch(bErr){ console.error('backup failed', bErr); }
 
-  await window.storage.set(pk('stores:SHARED'), JSON.stringify([]), true);
-  await window.storage.set(pk('zones:SHARED'), JSON.stringify([]), true);
+  state.stores = [];
+  state.zones = [];
+  await saveStores();
+  await saveZones();
 
   progress.textContent = 'تمت التصفية الكاملة ✓ الخريطة فاضية دلوقتي لكل الباحثين، وفيه باك أب محفوظ لو احتجته تسترجعه.';
   doneActions.style.display = 'flex';
@@ -3913,7 +4055,7 @@ async function getDisabledReps(){
 }
 
 document.getElementById('btn-add-rep').addEventListener('click', async ()=>{
-  const codeInput = prompt('اكتب كود الباحث الجديد (مثال: TDM45 أو أي اسم تاني مميز):');
+  const codeInput = prompt('اكتب كود الباحث الجديد (مثال: ADH45 أو أي اسم تاني مميز):');
   if(!codeInput) return;
   const code = codeInput.trim().toUpperCase();
   if(!code || code==='ADMIN' || code==='ALL'){
@@ -3995,7 +4137,7 @@ document.getElementById('bulk-reps-file-input').addEventListener('change', async
 });
 
 document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
-  const repInput = prompt('اكتب كود الباحث اللي عايز تمسحه بالكامل (مثال: TDM12):');
+  const repInput = prompt('اكتب كود الباحث اللي عايز تمسحه بالكامل (مثال: ADH12):');
   if(!repInput) return;
   const rep = repInput.trim().toUpperCase();
   const existingUsers = buildUsers();
@@ -4016,8 +4158,10 @@ document.getElementById('btn-delete-rep').addEventListener('click', async ()=>{
     await window.storage.set(pk('backup:'+rep), JSON.stringify({
       stores: repStores, zones: repZones, savedAt: new Date().toISOString(),
     }), true);
-    await window.storage.set(pk('stores:SHARED'), JSON.stringify(allStores.filter(s=>s.repCode!==rep)), true);
-    await window.storage.set(pk('zones:SHARED'), JSON.stringify(allZones.filter(z=>z.repCode!==rep)), true);
+    state.stores = allStores.filter(s=>s.repCode!==rep);
+    state.zones = allZones.filter(z=>z.repCode!==rep);
+    await saveStores();
+    await saveZones();
 
     const disabled = await getDisabledReps();
     if(!disabled.includes(rep)) disabled.push(rep);
@@ -4064,12 +4208,17 @@ document.getElementById('btn-restore-backup').addEventListener('click', async ()
     const backup = JSON.parse(res.value);
     if(!confirm(`هيتم استرجاع بيانات ${rep} لآخر نسخة قبل التحديث (بتاريخ ${new Date(backup.savedAt).toLocaleString('ar-EG')}). أي تعديلات حصلت بعد كده هتتمسح. متأكد؟`)) return;
 
-    // بيانات المحلات بقت في حوض مشترك، فالاسترجاع بيستبدل بس المحلات اللي كانت لصاحب الباحث ده
+    // بيانات المحلات والمربعات بقت في حوض مشترك، فالاسترجاع بيستبدل بس اللي كان لصاحب الباحث ده
     const currentShared = await loadStores(rep);
     const otherReps = currentShared.filter(s=>s.repCode!==rep);
     const restoredStores = (backup.stores||[]).map(s=>Object.assign({}, s, {repCode: rep}));
-    await window.storage.set(pk('stores:SHARED'), JSON.stringify(otherReps.concat(restoredStores)), true);
-    await window.storage.set(pk('zones:'+rep), JSON.stringify(backup.zones||[]), true);
+    const currentSharedZones = await loadZones(rep);
+    const otherRepsZones = currentSharedZones.filter(z=>z.repCode!==rep);
+    const restoredZones = (backup.zones||[]).map(z=>Object.assign({}, z, {repCode: rep}));
+    state.stores = otherReps.concat(restoredStores);
+    state.zones = otherRepsZones.concat(restoredZones);
+    await saveStores();
+    await saveZones();
     hint.textContent = `تم استرجاع بيانات ${rep} بنجاح.`;
 
     if(state.repCode!=='ALL' && state.repCode===rep){
@@ -4223,7 +4372,7 @@ document.getElementById('master-file-input').addEventListener('change', async (e
     }
     done++;
   }
-  try{ await window.storage.set(pk('stores:SHARED'), JSON.stringify(sharedStores), true); }
+  try{ await postSharedDataToServer('saveSharedStores', 'stores', sharedStores); clearDirtyKey(pk('stores:SHARED')); }
   catch(e){ localMirrorSet(pk('stores:SHARED'), JSON.stringify(sharedStores)); markKeyDirty(pk('stores:SHARED')); }
 
   progress.textContent = `تم التحديث لـ ${repCodes.length} باحث بنجاح ✓` +
@@ -4383,7 +4532,7 @@ document.getElementById('backup-import-input').addEventListener('change', async 
       state.stores = allStores.filter(s=>s.repCode!==targetRep).concat(restoredStores);
       state.zones = allZones.filter(z=>z.repCode!==targetRep).concat(restoredZones);
       if(payload.currentWeek) weekSelect.value = payload.currentWeek;
-      await saveStores(); await saveZones(); await saveCurrentWeek();
+      await saveStores(); await saveZones();
       renderMarkers();
       showToast('اترجعت النسخة الاحتياطية بنجاح');
     } else if(payload.type === 'ALL_REPS_BACKUP'){
@@ -4400,11 +4549,11 @@ document.getElementById('backup-import-input').addEventListener('change', async 
       const currentZones = await loadZones(state.repCode);
       const keptStores = currentShared.filter(s=>!repsInFile.includes(s.repCode));
       const keptZones = currentZones.filter(z=>!repsInFile.includes(z.repCode));
-      await window.storage.set(pk('stores:SHARED'), JSON.stringify(keptStores.concat(mergedStores)), true);
-      await window.storage.set(pk('zones:SHARED'), JSON.stringify(keptZones.concat(mergedZones)), true);
+      state.stores = keptStores.concat(mergedStores);
+      state.zones = keptZones.concat(mergedZones);
+      await saveStores();
+      await saveZones();
       showToast('اترجعت النسخة الشاملة لكل الباحثين بنجاح');
-      state.stores = await loadStores(state.repCode);
-      state.zones = await loadZones(state.repCode);
       renderMarkers();
     } else {
       showToast('الملف ده مش نسخة احتياطية معروفة');
