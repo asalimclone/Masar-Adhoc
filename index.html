@@ -913,11 +913,10 @@ const state = {
 };
 
 /* ===================== Storage ===================== */
-/* ---------- مرآة محلية (localStorage) لبيانات المحلات/المربعات ----------
-   window.storage محتاج نت عشان يوصل. لو النت واقع أو بطيء، أي حفظ بيه ممكن يفشل بصمت،
-   وأي حاجة حرجة زي تحول محل للون الأخضر ممكن "تضيع" لو الباحث قفل وفتح التطبيق قبل ما
-   النت يرجع. عشان كده بنكتب نسخة كمان في localStorage (محلي 100% على الجهاز، مبيحتاجش نت)
-   كـ "شبكة أمان": بنقرا منها لو window.storage فشل، وبنحاول نزامنها تاني أول ما النت يرجع. */
+/* ---------- تخزين مشترك حقيقي ----------
+   المحلات والمربعات بقت بتتخزن فعليًا على السيرفر (Apps Script/Drive)، مش على جهاز الباحث
+   لوحده. localStorage هنا بقى بس "شبكة أمان" (نسخة طوارئ) لو النت واقع فعلاً في اللحظة دي —
+   بنقرا منها لو فشل الاتصال بالسيرفر، وبنحاول نبعت أي حاجة اتأخرت أول ما النت يرجع. */
 function localMirrorSet(key, value){
   try{ localStorage.setItem('masar_mirror::'+key, value); }catch(e){ /* مساحة التخزين خلصت، نادر جدًا */ }
 }
@@ -936,16 +935,26 @@ function clearDirtyKey(key){
     localStorage.setItem('masar_dirty_keys', JSON.stringify(dirty));
   }catch(e){ /* تجاهل */ }
 }
-/* بيحاول يزامن أي مفتاح "متأخر" (اتحفظ محلي بس فشل يوصل للسيرفر المركزي) أول ما النت يرجع */
+async function postSharedDataToServer(kind, arrKey, arr){
+  const res = await fetch(ACTION_LOG_ENDPOINT, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ kind, project: currentProject, [arrKey]: arr }),
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error||'server error');
+}
+/* بيحاول يبعت أي مفتاح "متأخر" (اتحفظ محلي بس فشل يوصل للسيرفر) أول ما النت يرجع */
 async function resyncDirtyKeys(){
   let dirty = [];
   try{ dirty = JSON.parse(localStorage.getItem('masar_dirty_keys')||'[]'); }catch(e){ return; }
-  if(dirty.length===0) return;
+  if(dirty.length===0 || !ACTION_LOG_ENDPOINT) return;
   for(const key of dirty.slice()){
     const val = localMirrorGet(key);
     if(val==null) { clearDirtyKey(key); continue; }
     try{
-      await window.storage.set(key, val, true);
+      const arr = JSON.parse(val);
+      if(key.indexOf('stores:SHARED')!==-1) await postSharedDataToServer('saveSharedStores', 'stores', arr);
+      else if(key.indexOf('zones:SHARED')!==-1) await postSharedDataToServer('saveSharedZones', 'zones', arr);
       clearDirtyKey(key);
     }catch(e){ /* لسه فاشل، هنحاول تاني بعدين */ }
   }
@@ -953,32 +962,32 @@ async function resyncDirtyKeys(){
 window.addEventListener('online', resyncDirtyKeys);
 setInterval(resyncDirtyKeys, 45000);
 
-/* ---------- المحلات كلها بقت في "حوض" واحد مشترك بين كل الباحثين، بدل ما كل باحث يكون
-   ليه تخزين منفصل. أول مرة نحمّل بيها بعد التحديث ده، بنعمل ترحيل تلقائي لمرة واحدة بس:
-   بنجمع كل بيانات كل الباحثين القديمة (لو موجودة) في الحوض المشترك الجديد، عشان محدش
-   يضيع منه بيانات كانت متسكنة قبل كده. ---------- */
+/* ---------- المحلات كلها في حوض واحد مشترك حقيقي على السيرفر بين كل الباحثين والأدمن ---------- */
 async function loadStores(repCode){
-  const sharedKey = pk('stores:SHARED');
-  try{
-    const res = await window.storage.get(sharedKey, true);
-    if(res && res.value){
-      const parsed = JSON.parse(res.value);
-      if(Array.isArray(parsed)){
-        localMirrorSet(sharedKey, res.value);
-        return parsed;
+  const mirrorKey = pk('stores:SHARED');
+  if(ACTION_LOG_ENDPOINT){
+    try{
+      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSharedStores&project=${encodeURIComponent(currentProject)}`);
+      const data = await res.json();
+      if(data.ok && Array.isArray(data.stores) && data.stores.length>0){
+        localMirrorSet(mirrorKey, JSON.stringify(data.stores));
+        return data.stores;
       }
-    }
-  }catch(e){
-    const mirrored = localMirrorGet(sharedKey);
-    if(mirrored){
-      try{
-        const parsed = JSON.parse(mirrored);
-        if(Array.isArray(parsed)) return parsed;
-      }catch(e2){ /* تجاهل */ }
+      if(data.ok && Array.isArray(data.stores) && data.stores.length===0){
+        // السيرفر رد لكن فاضي — ده ممكن يبقى أول استخدام؛ هنكمل تحت نشوف نرحّل حاجة قديمة
+      } else {
+        throw new Error('bad response');
+      }
+    }catch(e){
+      const mirrored = localMirrorGet(mirrorKey);
+      if(mirrored){
+        try{ const parsed = JSON.parse(mirrored); if(Array.isArray(parsed)) return parsed; }catch(e2){ /* تجاهل */ }
+      }
+      return []; // مفيش نت ومفيش نسخة طوارئ محلية — نرجع فاضي بدل ما نعلّق
     }
   }
 
-  // مفيش حوض مشترك لسه — نجرب نرحّل بيانات كل الباحثين القديمة (لو موجودة) مرة واحدة بس
+  // أول استخدام للتطبيق تمامًا بعد التحديث ده: نرحّل أي بيانات قديمة كانت متخزنة محليًا (لو موجودة) للسيرفر مرة واحدة بس
   const merged = [];
   const oldRepCodes = allKnownRepCodesForTracking();
   for(const code of oldRepCodes){
@@ -986,23 +995,29 @@ async function loadStores(repCode){
       const res = await window.storage.get(pk('stores:'+code), true);
       if(res && res.value){
         const parsed = JSON.parse(res.value);
-        if(Array.isArray(parsed)){
-          parsed.forEach(s=>{ if(!s.repCode) s.repCode = code; merged.push(s); });
-        }
+        if(Array.isArray(parsed)) parsed.forEach(s=>{ if(!s.repCode) s.repCode = code; merged.push(s); });
       }
     }catch(e){ /* تجاهل، هنكمل باقي الباحثين */ }
   }
+  try{
+    const res = await window.storage.get(mirrorKey, true);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed)) parsed.forEach(s=>merged.push(s));
+    }
+  }catch(e){ /* تجاهل */ }
+
   if(merged.length>0){
-    try{ await window.storage.set(sharedKey, JSON.stringify(merged), true); }catch(e){}
-    localMirrorSet(sharedKey, JSON.stringify(merged));
+    try{ await postSharedDataToServer('saveSharedStores', 'stores', merged); }catch(e){ markKeyDirty(mirrorKey); }
+    localMirrorSet(mirrorKey, JSON.stringify(merged));
     return merged;
   }
 
-  // أول استخدام للتطبيق تمامًا: نبدأ بداتا تجريبية لو موجودة
   const seed = (window.__SEED_DATA__ && window.__SEED_DATA__[repCode]) ? window.__SEED_DATA__[repCode] : null;
   if(seed && seed.length){
     const cloned = JSON.parse(JSON.stringify(seed));
-    try{ await window.storage.set(sharedKey, JSON.stringify(cloned), true); }catch(e){}
+    try{ await postSharedDataToServer('saveSharedStores', 'stores', cloned); }catch(e){ markKeyDirty(mirrorKey); }
+    localMirrorSet(mirrorKey, JSON.stringify(cloned));
     return cloned;
   }
   return [];
@@ -1797,32 +1812,36 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
 async function saveStores(){
   const key = pk('stores:SHARED');
   const val = JSON.stringify(state.stores);
-  localMirrorSet(key, val); // بيتحفظ محلي فورًا ومبيفشلش
-  try{ await window.storage.set(key, val, true); clearDirtyKey(key); }
-  catch(e){ markKeyDirty(key); showToast('مفيش نت دلوقتي — البيانات اتحفظت على جهازك وهتترفع تلقائي أول ما النت يرجع'); }
+  localMirrorSet(key, val); // نسخة طوارئ محلية فورية، بتفشلش أبدًا
+  try{
+    await postSharedDataToServer('saveSharedStores', 'stores', state.stores);
+    clearDirtyKey(key);
+  }catch(e){
+    markKeyDirty(key);
+    showToast('مفيش نت دلوقتي — البيانات اتحفظت على جهازك وهتترفع تلقائي أول ما النت يرجع');
+  }
 }
 async function loadZones(repCode){
-  const sharedKey = pk('zones:SHARED');
-  try{
-    const res = await window.storage.get(sharedKey, true);
-    if(res && res.value){
-      const parsed = JSON.parse(res.value);
-      if(Array.isArray(parsed)){
-        localMirrorSet(sharedKey, res.value);
-        return parsed;
+  const mirrorKey = pk('zones:SHARED');
+  if(ACTION_LOG_ENDPOINT){
+    try{
+      const res = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSharedZones&project=${encodeURIComponent(currentProject)}`);
+      const data = await res.json();
+      if(data.ok && Array.isArray(data.zones) && data.zones.length>0){
+        localMirrorSet(mirrorKey, JSON.stringify(data.zones));
+        return data.zones;
       }
-    }
-  }catch(e){
-    const mirrored = localMirrorGet(sharedKey);
-    if(mirrored){
-      try{
-        const parsed = JSON.parse(mirrored);
-        if(Array.isArray(parsed)) return parsed;
-      }catch(e2){ /* تجاهل */ }
+      if(!(data.ok && Array.isArray(data.zones))) throw new Error('bad response');
+    }catch(e){
+      const mirrored = localMirrorGet(mirrorKey);
+      if(mirrored){
+        try{ const parsed = JSON.parse(mirrored); if(Array.isArray(parsed)) return parsed; }catch(e2){ /* تجاهل */ }
+      }
+      return [];
     }
   }
 
-  // ترحيل تلقائي لمرة واحدة بس من مربعات الباحثين القدامى (لو موجودة) للحوض المشترك الجديد
+  // ترحيل تلقائي لمرة واحدة بس من مربعات الباحثين القدامى (لو موجودة محليًا من نسخة أقدم) للسيرفر
   const merged = [];
   const oldRepCodes = allKnownRepCodesForTracking();
   for(const code of oldRepCodes){
@@ -1835,8 +1854,8 @@ async function loadZones(repCode){
     }catch(e){ /* تجاهل، هنكمل باقي الباحثين */ }
   }
   if(merged.length>0){
-    try{ await window.storage.set(sharedKey, JSON.stringify(merged), true); }catch(e){}
-    localMirrorSet(sharedKey, JSON.stringify(merged));
+    try{ await postSharedDataToServer('saveSharedZones', 'zones', merged); }catch(e){ markKeyDirty(mirrorKey); }
+    localMirrorSet(mirrorKey, JSON.stringify(merged));
     return merged;
   }
   return [];
@@ -1845,8 +1864,10 @@ async function saveZones(){
   const key = pk('zones:SHARED');
   const val = JSON.stringify(state.zones);
   localMirrorSet(key, val);
-  try{ await window.storage.set(key, val, true); clearDirtyKey(key); }
-  catch(e){ markKeyDirty(key); }
+  try{
+    await postSharedDataToServer('saveSharedZones', 'zones', state.zones);
+    clearDirtyKey(key);
+  }catch(e){ markKeyDirty(key); }
 }
 
 /* ===================== Login flow ===================== */
