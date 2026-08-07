@@ -146,7 +146,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 }
 .tb-btn:hover{background:rgba(255,255,255,.24);}
 .tb-btn.active{background:#fff;color:var(--primary-dark);}
-.menu-wrap{position:relative;}
+.menu-wrap{position:relative;flex-shrink:0;}
 .dropdown-menu{
   display:none;position:absolute;top:calc(100% + 8px);left:0;background:#fff;border-radius:12px;
   box-shadow:var(--shadow);min-width:220px;padding:6px;z-index:3500;flex-direction:column;gap:2px;
@@ -170,16 +170,17 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 .dd-sub{padding-right:26px;}
 
 .statbar{
-  display:flex;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);
-  flex-wrap:wrap;align-items:center;
+  display:flex;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);
+  flex-wrap:nowrap;overflow-x:auto;align-items:center;-webkit-overflow-scrolling:touch;
 }
+.statbar::-webkit-scrollbar{height:4px;}
 .chip{
-  display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;
-  background:var(--bg);color:var(--ink-soft);
+  display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;
+  background:var(--bg);color:var(--ink-soft);flex-shrink:0;white-space:nowrap;
 }
-.chip .sw{width:9px;height:9px;border-radius:50%;}
+.chip .sw{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .chip b{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
-.search-wrap{margin-inline-start:auto;position:relative;min-width:200px;flex:1;max-width:280px;}
+.search-wrap{position:relative;min-width:170px;flex-shrink:0;}
 .search-wrap input{
   width:100%;padding:8px 34px 8px 12px;border-radius:9px;border:1.5px solid var(--line);font-size:13px;background:var(--bg);
 }
@@ -323,7 +324,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <div class="user-chip"><span class="dot"></span><span id="current-user-label"></span></div>
     <div class="topbar-actions">
       <button class="tb-btn" id="btn-add-mode"><span>＋</span><span class="label">إضافة محل</span></button>
-      <button class="tb-btn" id="btn-locate"><span>📍</span><span class="label">موقعي</span></button>
+      <button class="tb-btn" id="btn-locate"><span><svg width="16" height="20" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-4px;"><path d="M17 0C7.6 0 0 7.6 0 17c0 12 17 25 17 25s17-13 17-25C34 7.6 26.4 0 17 0z" fill="#E5342B"/><circle cx="17" cy="17" r="8" fill="#fff"/></svg></span><span class="label">موقعي</span></button>
       <div class="menu-wrap">
         <button class="tb-btn" id="btn-theme-toggle"><span>🌙</span></button>
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
@@ -2698,17 +2699,20 @@ async function renderZones(){
   const myRenderId = ++zoneRenderToken;
   zoneLayer.clearLayers();
   if(!document.getElementById('toggle-zones').checked) return;
+  const zoneFilterActive = state.selectedZoneFilter.size>0;
+  const ZONE_LINE_COLOR = '#38BDF8'; // أزرق سماوي ثابت لكل حدود المربعات، في الوضعين الفاتح والغامق
   for(const zone of state.zones){
+    if(zoneFilterActive && !state.selectedZoneFilter.has(zone.id)) continue; // الفلتر بيخفي حدود المربعات مش بس النقط
     const zoneStores = state.stores.filter(s => s.zoneId === zone.id && (!zone.repCode || s.repCode === zone.repCode));
     const label = zone.repCode ? `${zone.repCode} — ${zone.name}` : zone.name;
 
     // لو المربع عنده حدود حقيقية مستوردة من نظام الـ GIS (شكل شوارع فعلي)، بنرسمها زي ما هي
     // من غير أي تقريب (convex hull) أو استعلام لخدمة الطرق. المربع ممكن يتكوّن من أكتر من
-    // قطعة منفصلة جغرافيًا (MultiPolygon)، فبنرسم كل قطعة لوحدها بنفس اللون.
+    // قطعة منفصلة جغرافيًا (MultiPolygon)، فبنرسم كل قطعة لوحدها. حدود بس، من غير أي تلوين داخلي.
     const importedRings = zoneRings(zone);
     if(importedRings){
       importedRings.forEach((ring, ringIdx)=>{
-        const poly = L.polygon(ring, {color:zone.color, weight:2.5, fillColor:zone.color, fillOpacity:.12}).addTo(zoneLayer);
+        const poly = L.polygon(ring, {color:ZONE_LINE_COLOR, weight:2.5, fill:false}).addTo(zoneLayer);
         if(ringIdx===0) poly.bindTooltip(label, {permanent:true, direction:'center', className:'zone-label'});
       });
       continue;
@@ -2717,7 +2721,7 @@ async function renderZones(){
     if(zoneStores.length===0) continue;
     if(zoneStores.length < 3){
       zoneStores.forEach(s=>{
-        L.circle([s.lat,s.lng], {radius:180, color:zone.color, weight:2, fillColor:zone.color, fillOpacity:.12}).addTo(zoneLayer);
+        L.circle([s.lat,s.lng], {radius:180, color:ZONE_LINE_COLOR, weight:2, fill:false}).addTo(zoneLayer);
       });
       const c = zoneStores[0];
       L.marker([c.lat,c.lng], {icon:L.divIcon({className:'',html:'',iconSize:[0,0]})})
@@ -2726,7 +2730,7 @@ async function renderZones(){
     }
     // draw hull immediately so the zone isn't blank while the road route loads
     const hull = convexHull(zoneStores);
-    const fallbackPoly = L.polygon(hull, {color:zone.color, weight:2, fillColor:zone.color, fillOpacity:.12, dashArray:'4,4'}).addTo(zoneLayer);
+    const fallbackPoly = L.polygon(hull, {color:ZONE_LINE_COLOR, weight:2, fill:false, dashArray:'4,4'}).addTo(zoneLayer);
     fallbackPoly.bindTooltip(label, {permanent:true, direction:'center', className:'zone-label'});
 
     const ordered = nearestNeighborOrder(zoneStores);
@@ -2735,7 +2739,7 @@ async function renderZones(){
       if(myRenderId !== zoneRenderToken) return; // a newer render happened, discard this stale result
       if(!roadPath) return; // keep the straight-line fallback already drawn
       zoneLayer.removeLayer(fallbackPoly);
-      const poly = L.polygon(roadPath, {color:zone.color, weight:2.5, fillColor:zone.color, fillOpacity:.1}).addTo(zoneLayer);
+      const poly = L.polygon(roadPath, {color:ZONE_LINE_COLOR, weight:2.5, fill:false}).addTo(zoneLayer);
       poly.bindTooltip(label, {permanent:true, direction:'center', className:'zone-label'});
     });
   }
