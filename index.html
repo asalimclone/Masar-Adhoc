@@ -170,17 +170,16 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 .dd-sub{padding-right:26px;}
 
 .statbar{
-  display:flex;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);
-  flex-wrap:nowrap;overflow-x:auto;align-items:center;-webkit-overflow-scrolling:touch;
+  display:flex;gap:6px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);
+  flex-wrap:wrap;align-items:center;
 }
-.statbar::-webkit-scrollbar{height:4px;}
 .chip{
-  display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;
-  background:var(--bg);color:var(--ink-soft);flex-shrink:0;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:11.5px;font-weight:700;
+  background:var(--bg);color:var(--ink-soft);white-space:nowrap;
 }
-.chip .sw{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.chip .sw{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .chip b{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
-.search-wrap{position:relative;min-width:170px;flex-shrink:0;}
+.search-wrap{position:relative;min-width:150px;flex:1 1 150px;max-width:260px;}
 .search-wrap input{
   width:100%;padding:8px 34px 8px 12px;border-radius:9px;border:1.5px solid var(--line);font-size:13px;background:var(--bg);
 }
@@ -324,7 +323,14 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <div class="user-chip"><span class="dot"></span><span id="current-user-label"></span></div>
     <div class="topbar-actions">
       <button class="tb-btn" id="btn-add-mode"><span>＋</span><span class="label">إضافة محل</span></button>
-      <button class="tb-btn" id="btn-locate"><span><svg width="16" height="20" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-4px;"><path d="M17 0C7.6 0 0 7.6 0 17c0 12 17 25 17 25s17-13 17-25C34 7.6 26.4 0 17 0z" fill="#E5342B"/><circle cx="17" cy="17" r="8" fill="#fff"/></svg></span><span class="label">موقعي</span></button>
+      <button class="tb-btn" id="btn-locate"><span><svg width="26" height="24" viewBox="0 0 60 52" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-7px;">
+        <polygon points="2,40 20,32 38,40 58,32 58,44 38,52 20,44 2,52" fill="#8FC97A"/>
+        <polygon points="2,40 14,34 14,46 2,52" fill="#7FB86A"/>
+        <polygon points="38,40 50,34 50,46 38,52" fill="#93C77E"/>
+        <polygon points="20,32 32,26 44,32 32,38" fill="#6FA8D8"/>
+        <path d="M23 0C15 0 9 6 9 14c0 10 14 21 14 21s14-11 14-21C37 6 31 0 23 0z" fill="#E5342B" transform="translate(4,0)"/>
+        <circle cx="27" cy="14" r="6.5" fill="#fff"/>
+      </svg></span><span class="label">موقعي</span></button>
       <div class="menu-wrap">
         <button class="tb-btn" id="btn-theme-toggle"><span>🌙</span></button>
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
@@ -374,17 +380,19 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
   </header>
 
   <div class="statbar">
-    <div class="chip"><span class="sw" style="background:var(--red)"></span>زيارات غير منجزة <b id="stat-not-done">0</b></div>
-    <div class="chip"><span class="sw" style="background:var(--blue)"></span>زيارات قيد التنفيذ <b id="stat-in-progress">0</b></div>
-    <div class="chip"><span class="sw" style="background:var(--green)"></span>زيارات منجزة <b id="stat-done">0</b></div>
+    <div class="chip" style="gap:9px;">
+      <span style="display:flex;align-items:center;gap:3px;"><span class="sw" style="background:var(--red)"></span><b id="stat-not-done">0</b></span>
+      <span style="display:flex;align-items:center;gap:3px;"><span class="sw" style="background:var(--blue)"></span><b id="stat-in-progress">0</b></span>
+      <span style="display:flex;align-items:center;gap:3px;"><span class="sw" style="background:var(--green)"></span><b id="stat-done">0</b></span>
+    </div>
     <div class="chip">الإجمالي <b id="stat-total">0</b></div>
     <div class="chip" id="offline-queue-badge" style="display:none;background:var(--amber-tint);color:var(--amber);font-weight:800;"></div>
     <label class="chip" style="cursor:pointer;">
       <input type="checkbox" id="toggle-zones" checked style="margin:0;">
-      إظهار المربعات
+      المربعات
     </label>
     <div class="menu-wrap">
-      <button class="chip" id="btn-zone-filter" style="cursor:pointer;border:none;">🗂️ عرض مربعات: <b id="zone-filter-label">الكل</b></button>
+      <button class="chip" id="btn-zone-filter" style="cursor:pointer;border:none;">🗂️ <b id="zone-filter-label">الكل</b></button>
       <div class="dropdown-menu" id="zone-filter-panel" style="min-width:220px;max-height:280px;overflow-y:auto;">
         <div style="padding:6px 8px;">
           <input type="text" id="zone-filter-search" placeholder="دور باسم المربع..." style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:13px;">
