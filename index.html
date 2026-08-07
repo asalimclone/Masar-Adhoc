@@ -846,29 +846,19 @@ function territoryConflictMessage(conflict){
 }
 
 async function checkTerritoryConflict(repCode, lat, lng){
-  const ownStores = state.stores.filter(s=>s.status==='valid');
-
+  // كل المحلات (بتاعت كل الباحثين) بقت متحمّلة فعلاً في state.stores من الحوض المشترك،
+  // فمحتاجينش أي طلبات شبكة تانية هنا — الحساب كله محلي وفوري.
+  const ownStores = state.stores.filter(s=>s.status==='valid' && s.repCode===repCode);
   let ownMinDist = Infinity;
   ownStores.forEach(s=>{ const d=haversineMeters(lat,lng,s.lat,s.lng); if(d<ownMinDist) ownMinDist=d; });
 
-  const otherCodes = [];
-  for(let i=1;i<=44;i++){ const code='ADH'+i; if(code!==repCode) otherCodes.push(code); }
-
-  const results = await Promise.all(otherCodes.map(async code=>{
-    let list;
-    try{ list = await loadStores(code); }catch(e){ list = []; }
-    let minD = Infinity;
-    list.forEach(s=>{
-      if(s.status==='valid'){
-        const d = haversineMeters(lat,lng,s.lat,s.lng);
-        if(d<minD) minD = d;
-      }
-    });
-    return {code, minD};
-  }));
-
   let nearestOtherRep = null, otherMinDist = Infinity;
-  results.forEach(r=>{ if(r.minD < otherMinDist){ otherMinDist = r.minD; nearestOtherRep = r.code; } });
+  state.stores.forEach(s=>{
+    if(s.status==='valid' && s.repCode && s.repCode!==repCode){
+      const d = haversineMeters(lat,lng,s.lat,s.lng);
+      if(d<otherMinDist){ otherMinDist = d; nearestOtherRep = s.repCode; }
+    }
+  });
 
   const overallMinDist = Math.min(ownMinDist, otherMinDist);
   if(overallMinDist > ALL_ZONES_MAX_DISTANCE_M){
