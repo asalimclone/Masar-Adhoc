@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ADHOC GEO FIELD</title>
+<script>
+  try{
+    if(localStorage.getItem('masar_theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+  }catch(e){ /* تجاهل */ }
+</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
@@ -59,6 +64,28 @@ window.__SEED_DATA__ = {"ADH12":[
   --blue-tint:#E4EDFB;
   --radius:14px;
   --shadow:0 10px 30px -12px rgba(24,24,24,.22);
+}
+[data-theme="dark"]{
+  --bg:#14161C;
+  --panel:#1D2028;
+  --ink:#EDEEF2;
+  --ink-soft:#9AA0AC;
+  --line:#2E323C;
+  --primary-tint:#3A1F2C;
+  --amber-tint:#3A2A18;
+  --red-tint:#3A2320;
+  --green-tint:#1B3226;
+  --blue-tint:#1B2A3E;
+  --shadow:0 10px 30px -12px rgba(0,0,0,.55);
+}
+.map-layer-toggle-btn{
+  background:var(--panel);color:var(--ink);border:1.5px solid var(--line);border-radius:9px;
+  padding:8px 12px;font-size:12.5px;font-weight:700;font-family:'Tajawal',sans-serif;cursor:pointer;
+  box-shadow:var(--shadow);margin:10px;
+}
+.theme-toggle-btn{
+  background:none;border:1.5px solid var(--line);border-radius:9px;color:var(--ink);
+  padding:6px 10px;font-size:13px;cursor:pointer;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Tajawal',sans-serif;}
@@ -202,6 +229,12 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 .overlay{position:fixed;inset:0;background:rgba(9,20,18,.5);display:none;align-items:center;justify-content:center;z-index:3000;padding:16px;}
 .overlay.show{display:flex;}
 .modal{background:var(--panel);border-radius:18px;padding:26px 24px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow);}
+.overlay-fullpage{background:var(--bg);padding:0;align-items:stretch;justify-content:stretch;}
+.overlay-fullpage .modal{max-width:none;max-height:none;width:100%;height:100%;border-radius:0;overflow-y:auto;box-shadow:none;padding:0;}
+.fullpage-header{position:sticky;top:0;background:var(--panel);border-bottom:1.5px solid var(--line);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:10;}
+.fullpage-header h3{margin:0;}
+.fullpage-body{padding:18px;max-width:720px;margin:0 auto;}
+.fullpage-footer{position:sticky;bottom:0;background:var(--panel);border-top:1.5px solid var(--line);padding:12px 18px;}
 .modal h3{margin:0 0 4px;font-size:18px;color:var(--primary-dark);}
 .modal .m-sub{font-size:13px;color:var(--ink-soft);margin:0 0 18px;}
 .modal .field{margin-bottom:14px;}
@@ -292,6 +325,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       <button class="tb-btn" id="btn-add-mode"><span>＋</span><span class="label">إضافة محل</span></button>
       <button class="tb-btn" id="btn-locate"><span>📍</span><span class="label">موقعي</span></button>
       <div class="menu-wrap">
+        <button class="tb-btn" id="btn-theme-toggle"><span>🌙</span></button>
         <button class="tb-btn" id="btn-menu-toggle"><span>☰</span></button>
         <div class="dropdown-menu" id="dropdown-menu">
           <button class="dd-item admin-only" id="btn-export" style="display:none;"><span>⇩</span> تصدير إكسل</button>
@@ -316,6 +350,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
             <button class="dd-item dd-sub" id="btn-backup-import"><span>📂</span> استيراد نسخة</button>
             <button class="dd-item dd-sub" id="btn-create-project"><span>🗂️</span> إنشاء مشروع جديد</button>
             <button class="dd-item dd-sub" id="btn-master-update"><span>⟳</span> تحديث الشيت الرئيسي</button>
+            <button class="dd-item dd-sub" id="btn-clear-stores" style="color:var(--red);"><span>🧹</span> مسح المحلات</button>
           </div>
 
           <div class="dd-divider admin-only" id="dd-folder-reps-divider" style="display:none;"></div>
@@ -427,18 +462,22 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 </div>
 
 <!-- ============ Admin: Survey builder ============ -->
-<div class="overlay" id="overlay-survey-builder">
-  <div class="modal" style="max-width:640px;max-height:88vh;overflow-y:auto;">
-    <h3 id="survey-builder-title">استبيان جديد</h3>
-    <div class="field">
-      <label>اسم الاستبيان</label>
-      <input type="text" id="survey-name-input" placeholder="مثال: متابعة نقاط البيع">
+<div class="overlay overlay-fullpage" id="overlay-survey-builder">
+  <div class="modal">
+    <div class="fullpage-header">
+      <h3 id="survey-builder-title">استبيان جديد</h3>
+      <button class="btn-ghost" id="survey-builder-cancel">✕ قفل</button>
     </div>
-    <div id="survey-questions-list" style="display:flex;flex-direction:column;gap:14px;margin-top:14px;"></div>
-    <button class="btn-ghost" id="btn-add-question" style="width:100%;margin-top:12px;">+ أضف سؤال</button>
-    <div class="modal-actions">
-      <button class="btn-ghost" id="survey-builder-cancel">إلغاء</button>
-      <button class="btn-solid" id="survey-builder-save">حفظ الاستبيان</button>
+    <div class="fullpage-body">
+      <div class="field">
+        <label>اسم الاستبيان</label>
+        <input type="text" id="survey-name-input" placeholder="مثال: متابعة نقاط البيع">
+      </div>
+      <div id="survey-questions-list" style="display:flex;flex-direction:column;gap:14px;margin-top:14px;"></div>
+      <button class="btn-ghost" id="btn-add-question" style="width:100%;margin-top:12px;">+ أضف سؤال</button>
+    </div>
+    <div class="fullpage-footer">
+      <button class="btn-solid" id="survey-builder-save" style="width:100%;">حفظ الاستبيان</button>
     </div>
   </div>
 </div>
@@ -455,13 +494,17 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 </div>
 
 <!-- ============ Rep: fill a survey ============ -->
-<div class="overlay" id="overlay-survey-fill">
-  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto;">
-    <h3 id="survey-fill-title">الاستبيان</h3>
-    <div id="survey-fill-body" style="display:flex;flex-direction:column;gap:16px;margin-top:10px;"></div>
-    <div class="modal-actions">
-      <button class="btn-ghost" id="survey-fill-cancel">إلغاء</button>
-      <button class="btn-solid" id="survey-fill-submit">إرسال الاستبيان</button>
+<div class="overlay overlay-fullpage" id="overlay-survey-fill">
+  <div class="modal">
+    <div class="fullpage-header">
+      <h3 id="survey-fill-title">الاستبيان</h3>
+      <button class="btn-ghost" id="survey-fill-cancel">✕ قفل</button>
+    </div>
+    <div class="fullpage-body">
+      <div id="survey-fill-body" style="display:flex;flex-direction:column;gap:16px;margin-top:10px;"></div>
+    </div>
+    <div class="fullpage-footer">
+      <button class="btn-solid" id="survey-fill-submit" style="width:100%;">إرسال الاستبيان</button>
     </div>
   </div>
 </div>
@@ -557,47 +600,6 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       </div>
     </div>
     <button class="map-pick-btn" id="btn-pick-loc">📍 دوس هنا وبعدين دوس على الخريطة لتحديد الموقع</button>
-
-    <hr style="border:none;border-top:1.5px solid var(--line);margin:16px 0;">
-
-    <div class="field">
-      <label>صور المحل (لازم صورة واحدة على الأقل، وتقدر تضيف كذا صورة)</label>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button type="button" class="btn-ghost" id="store-photo-camera-btn" style="flex:1;">📷 افتح الكاميرا</button>
-        <button type="button" class="btn-ghost" id="store-photo-gallery-btn" style="flex:1;">⬆️ رفع الصور</button>
-      </div>
-      <input type="file" accept="image/*" capture="environment" id="store-photo-camera-input" style="display:none;">
-      <input type="file" accept="image/*" id="store-photo-gallery-input" style="display:none;" multiple>
-      <div id="store-photos-preview" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-    </div>
-    <div class="field">
-      <label>محل قوي؟</label>
-      <select id="store-strong" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
-        <option value="">اختار...</option>
-        <option value="نعم">نعم</option>
-        <option value="لا">لا</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>تواجد ثلاجة جهينة؟</label>
-      <select id="store-jhina-fridge" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
-        <option value="">اختار...</option>
-        <option value="نعم">نعم</option>
-        <option value="لا">لا</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>تواجد منتجات مشروبات الطاقة؟</label>
-      <select id="store-energy-drinks" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);">
-        <option value="">اختار...</option>
-        <option value="نعم">نعم</option>
-        <option value="لا">لا</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>سبب الإضافة / ملاحظات أخرى</label>
-      <textarea id="store-add-reason" rows="2" placeholder="اكتب سبب إضافة المحل..." style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:#FBFCFB;font-size:15px;color:var(--ink);resize:vertical;"></textarea>
-    </div>
 
     <div class="modal-actions">
       <button class="btn-ghost" id="store-cancel">إلغاء</button>
@@ -1283,7 +1285,6 @@ const SURVEY_QUESTION_TYPES = [
   {key:'multiphoto', label:'صور متعددة (بعدد حر)'},
   {key:'final_status', label:'🏁 هل هذه الحالة النهائية؟ (بيتحكم في لون النقطة على الخريطة)'},
 ];
-const BUILT_IN_ADD_STORE_SURVEY_ID = 'built_in_add_store';
 
 async function loadSurveysFromServer(){
   if(!ACTION_LOG_ENDPOINT) return;
@@ -1329,17 +1330,16 @@ function renderSurveysAdminList(){
     return;
   }
   box.innerHTML = state.surveys.map(sv => {
-    const isBuiltIn = sv.id === BUILT_IN_ADD_STORE_SURVEY_ID;
     return `
     <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-weight:700;">${isBuiltIn ? '🔒 ' : ''}${escapeHtml(sv.name||'(من غير اسم)')}</div>
-          <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال${isBuiltIn ? ' — استبيان مدمج، بيتعبى تلقائي مع كل إضافة محل جديد' : ''}</div>
+          <div style="font-weight:700;">${escapeHtml(sv.name||'(من غير اسم)')}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال</div>
         </div>
         <div style="display:flex;gap:6px;">
           <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="openSurveyBuilder('${sv.id}')">تعديل</button>
-          ${isBuiltIn ? '' : `<button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>`}
+          <button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>
         </div>
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
@@ -1724,11 +1724,7 @@ window.deleteSurveyById = async function(id){
 window.openSurveysForStore = function(storeId){
   state.surveyFillStoreId = storeId;
   map.closePopup();
-  const store = state.stores.find(s=>s.id===storeId);
-  // استبيان "إضافة عميل جديد" مخصوص بس للمحلات اللي اتضافت من جوه الابليكيشن نفسه (origin='new')، مش للمحلات الأساسية المستوردة من الشيت الرئيسي
-  const visibleSurveys = state.surveys.filter(sv =>
-    sv.id !== BUILT_IN_ADD_STORE_SURVEY_ID || (store && store.origin === 'new')
-  );
+  const visibleSurveys = state.surveys;
   const box = document.getElementById('survey-pick-list');
   if(visibleSurveys.length===0){
     box.innerHTML = '<p class="hint">لسه مفيش استبيانات متاحة من الأدمن.</p>';
@@ -2213,7 +2209,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   const showAdminEdit = state.isAdmin;
   const adminOnlyIds = [
     'btn-export','btn-zones','btn-import','btn-master-update','btn-manage-surveys','btn-create-project',
-    'btn-backup-export','btn-backup-import',
+    'btn-backup-export','btn-backup-import','btn-clear-stores',
     'btn-full-reset','btn-reset-sheets','btn-add-rep','btn-bulk-add-reps','btn-delete-rep','btn-reenable-rep',
     'dd-admin-divider',
     'dd-folder-zones-divider','dd-folder-zones-toggle','dd-folder-zones-items',
@@ -2250,13 +2246,52 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
 /* ===================== Map ===================== */
 let map, cluster, zoneLayer, dayRouteLayer, myLocationLayer, directionLayer;
 let myLocation = null; // {lat, lng}
+/* ===================== طبقات الخريطة (شوارع/ساتلايت × فاتح/غامق) ===================== */
+const TILE_LAYERS = {
+  streets_light: { url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', maxZoom:19, attribution:'&copy; OpenStreetMap' },
+  streets_dark:  { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', maxZoom:19, attribution:'&copy; OpenStreetMap &copy; CARTO' },
+  satellite:     { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom:19, attribution:'Tiles &copy; Esri' },
+};
+let activeTileLayer = null;
+let currentBaseLayerMode = 'streets'; // 'streets' أو 'satellite'
+
+function getSavedBaseLayerMode(){
+  try{ return localStorage.getItem('masar_base_layer') || 'streets'; }catch(e){ return 'streets'; }
+}
+function setBaseLayer(mode){
+  currentBaseLayerMode = mode;
+  try{ localStorage.setItem('masar_base_layer', mode); }catch(e){ /* تجاهل */ }
+  const key = mode==='satellite' ? 'satellite' : (isDarkTheme() ? 'streets_dark' : 'streets_light');
+  const cfg = TILE_LAYERS[key];
+  if(activeTileLayer) map.removeLayer(activeTileLayer);
+  activeTileLayer = L.tileLayer(cfg.url, {maxZoom:cfg.maxZoom, attribution:cfg.attribution}).addTo(map);
+  const btn = document.getElementById('btn-base-layer-toggle');
+  if(btn) btn.textContent = mode==='satellite' ? '🗺️ الوضع العادي' : '🛰️ ساتلايت';
+}
+function addBaseLayerToggleControl(){
+  const Control = L.Control.extend({
+    onAdd: function(){
+      const btn = L.DomUtil.create('button', 'map-layer-toggle-btn');
+      btn.id = 'btn-base-layer-toggle';
+      btn.type = 'button';
+      btn.textContent = currentBaseLayerMode==='satellite' ? '🗺️ الوضع العادي' : '🛰️ ساتلايت';
+      L.DomEvent.disableClickPropagation(btn);
+      btn.addEventListener('click', ()=>{
+        setBaseLayer(currentBaseLayerMode==='satellite' ? 'streets' : 'satellite');
+      });
+      return btn;
+    },
+    onRemove: function(){},
+  });
+  new Control({position:'topright'}).addTo(map);
+}
+
 function initMapOnce(){
   if(map){ setTimeout(()=>map.invalidateSize(),50); return; }
   map = L.map('map', {zoomControl:false}).setView([30.06,31.24], 12);
   L.control.zoom({position:'bottomleft'}).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'&copy; OpenStreetMap'
-  }).addTo(map);
+  setBaseLayer(getSavedBaseLayerMode());
+  addBaseLayerToggleControl();
   zoneLayer = L.layerGroup().addTo(map);
   dayRouteLayer = L.layerGroup().addTo(map);
   myLocationLayer = L.layerGroup().addTo(map);
@@ -2452,6 +2487,24 @@ document.getElementById('btn-locate').addEventListener('click', ()=> locateMe())
 
 /* ===================== Hamburger dropdown menu ===================== */
 const dropdownMenu = document.getElementById('dropdown-menu');
+/* ===================== الثيم (فاتح/غامق) ===================== */
+function isDarkTheme(){
+  return document.documentElement.getAttribute('data-theme')==='dark';
+}
+function applyThemeButtonIcon(){
+  const btn = document.getElementById('btn-theme-toggle');
+  if(btn) btn.querySelector('span').textContent = isDarkTheme() ? '☀️' : '🌙';
+}
+document.getElementById('btn-theme-toggle').addEventListener('click', ()=>{
+  const next = isDarkTheme() ? 'light' : 'dark';
+  if(next==='dark') document.documentElement.setAttribute('data-theme','dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try{ localStorage.setItem('masar_theme', next); }catch(e){ /* تجاهل */ }
+  applyThemeButtonIcon();
+  if(map) setBaseLayer(currentBaseLayerMode); // نحدّث تايلز الخريطة تتماشى مع الثيم الجديد
+});
+applyThemeButtonIcon();
+
 const menuToggleBtn = document.getElementById('btn-menu-toggle');
 menuToggleBtn.addEventListener('click', (e)=>{
   e.stopPropagation();
@@ -2758,9 +2811,12 @@ function zoneNameOf(store){
   return z ? z.name : null;
 }
 
-/* ---------- ترحيل موقع محل: دائرة شفافة قابلة للسحب على الخريطة + تأكيد قبل ما الإحداثيات تتغير فعليًا ---------- */
+/* ---------- ترحيل موقع محل: دائرة شفافة قابلة للسحب على الخريطة + تأكيد قبل ما الإحداثيات تتغير فعليًا ----------
+   لو الترحيل هيطلع بالمحل برا حدود مربعه الحالي، بيظهر تحذير وعداد 3 ثواني قبل ما زرار
+   التأكيد يشتغل، عشان الباحث ياخد باله ومايعملش كده بالغلط. */
 let relocateMarker = null;
 let relocateStoreId = null;
+let relocateCountdownTimer = null;
 
 window.startRelocateStore = function(storeId){
   const store = state.stores.find(s=>s.id===storeId);
@@ -2777,17 +2833,60 @@ window.startRelocateStore = function(storeId){
   showToast('اسحب الدائرة الشفافة للمكان الصحيح وسيبها 👆');
   relocateMarker.on('dragend', ()=>{
     const pos = relocateMarker.getLatLng();
-    relocateMarker.bindPopup(`
-      <div class="pop" style="text-align:center;min-width:180px;">
-        <p class="pop-title" style="margin-bottom:8px;">تنقل "${escapeHtml(store.name)}" لهنا؟</p>
-        <button class="pop-btn primary" style="width:100%;margin-bottom:6px;" onclick="confirmRelocateStore(${pos.lat},${pos.lng})">✓ موافق على النقل لهذا الموقع</button>
-        <button class="pop-btn warn" style="width:100%;" onclick="cancelRelocateStore()">إلغاء</button>
-      </div>
-    `, {closeOnClick:false, autoClose:false}).openPopup();
+    const currentZone = store.zoneId ? state.zones.find(z=>z.id===store.zoneId) : null;
+    const currentZoneRings = currentZone ? zoneRings(currentZone) : null;
+    const stayedInsideZone = !currentZoneRings || pointInZoneRings(pos.lat, pos.lng, currentZoneRings);
+
+    if(stayedInsideZone){
+      relocateMarker.bindPopup(`
+        <div class="pop" style="text-align:center;min-width:180px;">
+          <p class="pop-title" style="margin-bottom:8px;">تنقل "${escapeHtml(store.name)}" لهنا؟</p>
+          <button class="pop-btn primary" style="width:100%;margin-bottom:6px;" onclick="confirmRelocateStore(${pos.lat},${pos.lng})">✓ موافق على النقل لهذا الموقع</button>
+          <button class="pop-btn warn" style="width:100%;" onclick="cancelRelocateStore()">إلغاء</button>
+        </div>
+      `, {closeOnClick:false, autoClose:false}).openPopup();
+    } else {
+      relocateMarker.bindPopup(`
+        <div class="pop" style="text-align:center;min-width:200px;">
+          <p class="pop-title" style="margin-bottom:6px;color:var(--red);">⚠️ تحذير</p>
+          <p style="font-size:13px;margin-bottom:10px;">هتنقل "${escapeHtml(store.name)}" لمكان <b>برا حدود مربعه الحالي (${escapeHtml(currentZone.name)})</b>. متأكد؟</p>
+          <button class="pop-btn primary" id="relocate-confirm-btn" style="width:100%;margin-bottom:6px;opacity:.5;" disabled onclick="confirmRelocateStore(${pos.lat},${pos.lng})">✓ تأكيد الترحيل (<span id="relocate-countdown">3</span>)</button>
+          <button class="pop-btn warn" style="width:100%;" onclick="cancelOutOfZoneRelocate(${store.lat},${store.lng})">إلغاء الترحيل</button>
+        </div>
+      `, {closeOnClick:false, autoClose:false}).openPopup();
+
+      let secondsLeft = 3;
+      clearInterval(relocateCountdownTimer);
+      relocateCountdownTimer = setInterval(()=>{
+        secondsLeft--;
+        const span = document.getElementById('relocate-countdown');
+        const btn = document.getElementById('relocate-confirm-btn');
+        if(!span || !btn){ clearInterval(relocateCountdownTimer); return; } // البوب أب اتقفل قبل ما العداد يخلص
+        if(secondsLeft<=0){
+          clearInterval(relocateCountdownTimer);
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerHTML = '✓ تأكيد الترحيل';
+        } else {
+          span.textContent = secondsLeft;
+        }
+      }, 1000);
+    }
   });
 };
 
+/* لو دس "إلغاء الترحيل" بعد تحذير الخروج برا المربع، الدائرة ترجع لمكان المحل الأصلي (مش بتقفل وضع الترحيل خالص، يقدر يجرب تاني) */
+window.cancelOutOfZoneRelocate = function(origLat, origLng){
+  clearInterval(relocateCountdownTimer);
+  if(relocateMarker){
+    relocateMarker.closePopup();
+    relocateMarker.setLatLng([origLat, origLng]);
+  }
+  showToast('اتلغى الترحيل، المحل رجع لمكانه الأصلي');
+};
+
 window.confirmRelocateStore = function(lat, lng){
+  clearInterval(relocateCountdownTimer);
   const store = state.stores.find(s=>s.id===relocateStoreId);
   if(store){
     const oldLat = store.lat, oldLng = store.lng;
@@ -2803,6 +2902,7 @@ window.confirmRelocateStore = function(lat, lng){
 };
 
 window.cancelRelocateStore = function(){
+  clearInterval(relocateCountdownTimer);
   if(relocateMarker){ map.removeLayer(relocateMarker); relocateMarker = null; }
   relocateStoreId = null;
 };
@@ -2904,12 +3004,8 @@ document.getElementById('toggle-live-track').addEventListener('change', (e)=>{
 });
 
 function buildPopupHTML(store){
-  const st = STATUS[store.status];
-  const isProblem = store.status !== 'valid';
   let actions = '';
-  if(isProblem){
-    actions = `<button class="pop-btn warn" onclick="openReplaceFlow('${store.id}')">إضافة محل بديل</button>`;
-  } else if(!store.assignment){
+  if(!store.assignment){
     actions = `<button class="pop-btn primary" onclick="openAssignModal('${store.id}')">إضافة لخط السير</button>`;
   }
   actions += `<button class="pop-btn dir" onclick="goToStore('${store.id}')">🧭 روح للمحل ده</button>`;
@@ -2938,9 +3034,6 @@ function buildPopupHTML(store){
     <div class="pop">
       <p class="pop-title">${escapeHtml(store.name)}</p>
       <p class="pop-code">كود ${escapeHtml(String(store.code))}${state.repCode==='ALL' && store.repCode ? ' — '+escapeHtml(store.repCode) : ''}</p>
-      <select class="pop-select" onchange="changeStatus('${store.id}', this.value)">
-        ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${store.status===k?'selected':''}>${v.label}</option>`).join('')}
-      </select>
       <div class="pop-actions">${actions}</div>
       ${nameEditHTML}
       ${noteHTML}
@@ -3701,13 +3794,6 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
   document.getElementById('store-lat').value = lat!=null ? lat.toFixed(6) : '';
   document.getElementById('store-lng').value = lng!=null ? lng.toFixed(6) : '';
 
-  currentStorePhotos = [];
-  renderStorePhotosPreview();
-  document.getElementById('store-strong').value = '';
-  document.getElementById('store-jhina-fridge').value = '';
-  document.getElementById('store-energy-drinks').value = '';
-  document.getElementById('store-add-reason').value = '';
-
   document.getElementById('store-lat').readOnly = !state.isAdmin;
   document.getElementById('store-lng').readOnly = !state.isAdmin;
   document.getElementById('btn-pick-loc').style.display = state.isAdmin ? 'block' : 'none';
@@ -3731,37 +3817,6 @@ document.getElementById('store-cancel').addEventListener('click', ()=>{
   overlayStore.classList.remove('show');
   state.pickingForStoreModal = false;
 });
-let currentStorePhotos = [];
-function renderStorePhotosPreview(){
-  const box = document.getElementById('store-photos-preview');
-  box.innerHTML = currentStorePhotos.map((file, idx)=>{
-    const url = URL.createObjectURL(file);
-    return `<div style="position:relative;width:84px;height:84px;">
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
-      <button type="button" onclick="removeStorePhoto(${idx})" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;">✕</button>
-    </div>`;
-  }).join('');
-}
-window.removeStorePhoto = function(idx){
-  currentStorePhotos.splice(idx,1);
-  renderStorePhotosPreview();
-};
-document.getElementById('store-photo-camera-btn').addEventListener('click', ()=>{
-  document.getElementById('store-photo-camera-input').click();
-});
-document.getElementById('store-photo-gallery-btn').addEventListener('click', ()=>{
-  document.getElementById('store-photo-gallery-input').click();
-});
-document.getElementById('store-photo-camera-input').addEventListener('change', (e)=>{
-  if(e.target.files[0]) currentStorePhotos.push(e.target.files[0]);
-  e.target.value = '';
-  renderStorePhotosPreview();
-});
-document.getElementById('store-photo-gallery-input').addEventListener('change', (e)=>{
-  Array.from(e.target.files).forEach(f=>currentStorePhotos.push(f));
-  e.target.value = '';
-  renderStorePhotosPreview();
-});
 document.getElementById('btn-pick-loc').addEventListener('click', ()=>{
   state.pickingForStoreModal = true;
   const btn = document.getElementById('btn-pick-loc');
@@ -3780,20 +3835,6 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   }
   if(!type){
     showToast('اختار نوع المحل الأول عشان نظام الزيارة يتحدد صح');
-    return;
-  }
-
-  const strongStore = document.getElementById('store-strong').value;
-  const jhinaFridge = document.getElementById('store-jhina-fridge').value;
-  const energyDrinks = document.getElementById('store-energy-drinks').value;
-  const addReason = document.getElementById('store-add-reason').value.trim();
-
-  if(currentStorePhotos.length===0){
-    showToast('لازم صورة واحدة على الأقل لواجهة المحل من الخارج');
-    return;
-  }
-  if(!strongStore || !jhinaFridge || !energyDrinks){
-    showToast('جاوب على أسئلة (محل قوي / ثلاجة جهينة / مشروبات الطاقة) الأول');
     return;
   }
 
@@ -3891,20 +3932,6 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
   const saveBtn = document.getElementById('store-save');
   saveBtn.disabled = true;
   const originalBtnText = saveBtn.textContent;
-  const photoUrls = [];
-  try{
-    for(let i=0;i<currentStorePhotos.length;i++){
-      saveBtn.textContent = `بيرفع الصورة ${i+1} من ${currentStorePhotos.length}...`;
-      const matchedZoneName = matchedZoneId ? (state.zones.find(z=>z.id===matchedZoneId)||{}).name || '' : '';
-      const url = await uploadStorePhoto(currentStorePhotos[i], 'صورة_المحل_' + blockLabelFromZoneId(matchedZoneId, code) + (currentStorePhotos.length>1 ? '_'+(i+1) : ''), code, matchedZoneName);
-      photoUrls.push(url);
-    }
-  }catch(err){
-    saveBtn.disabled = false;
-    saveBtn.textContent = originalBtnText;
-    showToast('حصلت مشكلة في رفع الصور، جرب تاني (اتأكد من النت)');
-    return;
-  }
   saveBtn.disabled = false;
   saveBtn.textContent = originalBtnText;
 
@@ -3912,30 +3939,12 @@ document.getElementById('store-save').addEventListener('click', async ()=>{
     id: 's_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     name, code, lat, lng, status:'valid', storeType: type, gasStationChain: chain || undefined,
     assignment, zoneId: matchedZoneId, origin:'new', repCode: ownerRep,
-    strongStore, jhinaFridge, energyDrinks, addReason, photoUrls,
   };
   state.stores.push(newStore);
   saveStores();
   renderMarkers();
   overlayStore.classList.remove('show');
   logAction(state.replacingFor ? 'إضافة محل بديل' : 'إضافة محل', code, name, `النوع: ${type}${chain?' / السلسلة: '+chain:''} — يوم ${DAYS[assignment.days[0]].ar}${state.isAdmin?' — سُجّل تحت '+ownerRep:''}`, newStore);
-  // بيانات الـ checklist والصور بتتسجل كرد على استبيان "إضافة عميل جديد" المدمج، عشان تقدر ترجعله تعدله بعدين من غير قيد اللوكيشن
-  postToServerOrQueue({
-    kind:'submitSurveyResponse',
-    project: currentProject,
-    repCode: ownerRep,
-    storeCode: code,
-    storeName: name,
-    zoneName: matchedZoneId ? (state.zones.find(z=>z.id===matchedZoneId)||{}).name || '' : '',
-    surveyId: BUILT_IN_ADD_STORE_SURVEY_ID,
-    answers: {
-      q_strong: strongStore,
-      q_jhina: jhinaFridge,
-      q_energy: energyDrinks,
-      q_reason: addReason,
-      q_photos: photoUrls,
-    },
-  });
 
   if(assignment.suspended){
     showToast(`اتضاف المحل بس دخل قائمة الانتظار (Suspended) — إجمالي زياراتك النشطة وصل للحد الأقصى (${MONTHLY_VISIT_MAX}).`);
@@ -4037,6 +4046,25 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
 /* ===================== Admin: Master sheet update ===================== */
 document.getElementById('btn-master-update').addEventListener('click', ()=>{
   document.getElementById('master-file-input').click();
+});
+
+/* ---------- مسح المحلات (بس، مش المربعات) — بيمسح من على السيرفر مباشرة لكل الباحثين مع بعض ---------- */
+document.getElementById('btn-clear-stores').addEventListener('click', async ()=>{
+  if(!confirm('هيتم مسح كل المحلات (مش المربعات) من على السيرفر لكل الباحثين. هياخد باك أب قبل ما يمسح. متأكد؟')) return;
+  const typed = prompt('اكتب "مسح المحلات" بالظبط عشان تأكد:');
+  if(typed !== 'مسح المحلات'){ showToast('اتلغى — النص المكتوب مش مطابق'); return; }
+
+  try{
+    const existingStores = await loadStores(state.repCode);
+    await window.storage.set(pk('backup:SHARED'), JSON.stringify({
+      stores: existingStores, zones: await loadZones(state.repCode), savedAt: new Date().toISOString(),
+    }), true);
+  }catch(bErr){ console.error('backup failed', bErr); }
+
+  state.stores = [];
+  await saveStores(); // بتكتب على السيرفر مباشرة، فكل الباحثين هيشوفوا الخريطة فاضية من المحلات فورًا
+  renderMarkers();
+  showToast('✅ اتمسحت كل المحلات من على السيرفر لكل الباحثين. المربعات لسه موجودة زي ما هي.');
 });
 
 document.getElementById('btn-full-reset').addEventListener('click', async ()=>{
