@@ -413,6 +413,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
     <h3>إدارة الاستبيانات</h3>
     <p class="hint">الاستبيانات دي بتظهر لكل الباحثين لما يفتحوا أي محل، وممكن الباحث يملا نفس الاستبيان أكتر من مرة.</p>
     <div id="surveys-list" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>
+    <input type="file" id="survey-draft-import-file" accept=".xlsx,.xls" style="display:none;">
     <input type="file" id="survey-excel-file" accept=".xlsx,.xls" style="display:none;">
     <div class="modal-actions" style="flex-wrap:wrap;">
       <button class="btn-ghost" id="btn-survey-sample-download">⬇️ تحميل نموذج مثال</button>
@@ -1330,14 +1331,20 @@ function renderSurveysAdminList(){
   box.innerHTML = state.surveys.map(sv => {
     const isBuiltIn = sv.id === BUILT_IN_ADD_STORE_SURVEY_ID;
     return `
-    <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div style="font-weight:700;">${isBuiltIn ? '🔒 ' : ''}${escapeHtml(sv.name||'(من غير اسم)')}</div>
-        <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال${isBuiltIn ? ' — استبيان مدمج، بيتعبى تلقائي مع كل إضافة محل جديد' : ''}</div>
+    <div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;">${isBuiltIn ? '🔒 ' : ''}${escapeHtml(sv.name||'(من غير اسم)')}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${(sv.questions||[]).length} سؤال${isBuiltIn ? ' — استبيان مدمج، بيتعبى تلقائي مع كل إضافة محل جديد' : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="openSurveyBuilder('${sv.id}')">تعديل</button>
+          ${isBuiltIn ? '' : `<button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>`}
+        </div>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px;" onclick="openSurveyBuilder('${sv.id}')">تعديل</button>
-        ${isBuiltIn ? '' : `<button class="btn-danger" style="padding:6px 12px;font-size:12.5px;" onclick="deleteSurveyById('${sv.id}')">مسح</button>`}
+      <div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
+        <button class="btn-ghost" style="flex:1;padding:6px;font-size:12px;" onclick="downloadSurveyDraftTemplate('${sv.id}')">⬇️ نموذج خاص بالاستبيان ده</button>
+        <button class="btn-ghost" style="flex:1;padding:6px;font-size:12px;" onclick="document.getElementById('survey-draft-import-file').dataset.surveyId='${sv.id}'; document.getElementById('survey-draft-import-file').click();">📥 استيراد بيانات جاهزة</button>
       </div>
     </div>
   `;
@@ -1345,6 +1352,56 @@ function renderSurveysAdminList(){
 }
 document.getElementById('btn-new-survey').addEventListener('click', ()=>{
   openSurveyBuilder(null);
+});
+
+/* ---------- تحميل نموذج + استيراد بيانات جاهزة (كمسودة) لاستبيان معين ---------- */
+window.downloadSurveyDraftTemplate = function(surveyId){
+  const survey = state.surveys.find(s=>s.id===surveyId);
+  if(!survey) return;
+  const headers = ['كود المحل', ...survey.questions.map(q=>q.text)];
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  ws['!cols'] = headers.map(()=>({wch:24}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'بيانات جاهزة');
+  XLSX.writeFile(wb, `نموذج_${survey.name}.xlsx`);
+};
+
+document.getElementById('survey-draft-import-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  const surveyId = e.target.dataset.surveyId;
+  if(!file || !surveyId) return;
+  e.target.value = '';
+  const survey = state.surveys.find(s=>s.id===surveyId);
+  if(!survey) return;
+
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    let done = 0, skipped = 0;
+    for(let idx=1; idx<rows.length; idx++){
+      const row = rows[idx];
+      if(!row || row[0]==null || String(row[0]).trim()===''){ continue; }
+      const storeCode = String(row[0]).trim();
+      const answers = {};
+      survey.questions.forEach((q, qi)=>{
+        const val = row[qi+1];
+        if(val!=null && String(val).trim()!=='') answers[q.id] = String(val).trim();
+      });
+      if(Object.keys(answers).length===0){ skipped++; continue; }
+      try{
+        await fetch(ACTION_LOG_ENDPOINT, {
+          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({kind:'saveSurveyDraft', project: currentProject, surveyId: survey.id, storeCode, answers}),
+        });
+        done++;
+      }catch(e){ skipped++; }
+    }
+    // المحلات تفضل زي حالتها الحالية (أحمر لحد ما الباحث يفتح الاستمارة بنفسه فعليًا) — من غير أي تغيير هنا
+    showToast(`اتحطت بيانات جاهزة كمسودة لـ ${done} محل${skipped>0 ? `، اتجاهل ${skipped} صف` : ''}. هتظهر للباحث أول ما يفتح الاستمارة.`);
+  }catch(err){
+    showToast('حصلت مشكلة في قراءة الملف — راجع الصيغة زي النموذج');
+  }
 });
 
 /* ---------- استيراد استبيان من إكسل ---------- */
