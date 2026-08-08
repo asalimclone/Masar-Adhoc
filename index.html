@@ -346,6 +346,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
           <div class="dd-folder-items admin-only" id="dd-folder-zones-items" style="display:none;">
             <button class="dd-item dd-sub" id="btn-zones"><span>▦</span> المربعات</button>
             <button class="dd-item dd-sub" id="btn-import"><span>⇪</span> رفع/تعديل المحلات (إكسل)</button>
+            <button class="dd-item dd-sub" id="btn-quick-draft-import"><span>📥</span> رفع بيانات قديمة للمحلات المسجلة</button>
           </div>
 
           <div class="dd-divider admin-only" id="dd-folder-projects-divider" style="display:none;"></div>
@@ -1330,6 +1331,18 @@ window.startDraftImport = function(surveyId){
   document.getElementById('survey-draft-import-file').dataset.surveyId = surveyId;
   document.getElementById('survey-draft-import-file').click();
 };
+document.getElementById('btn-quick-draft-import').addEventListener('click', async ()=>{
+  if(state.surveys.length===0){ showToast('لسه مفيش استبيانات — اعملي واحد الأول من "إدارة الاستبيانات"'); return; }
+  let chosen = state.surveys[0];
+  if(state.surveys.length>1){
+    const list = state.surveys.map((s,i)=>`${i+1}. ${s.name}`).join('\n');
+    const answer = prompt(`الاستبيان ده بتاع أنهي استبيان؟ اكتبي رقمه بس:\n${list}`, '1');
+    const idx = parseInt((answer||'').trim(), 10) - 1;
+    if(isNaN(idx) || !state.surveys[idx]) return;
+    chosen = state.surveys[idx];
+  }
+  window.startDraftImport(chosen.id);
+});
 document.getElementById('btn-new-survey').addEventListener('click', ()=>{
   openSurveyBuilder(null);
 });
@@ -1364,7 +1377,8 @@ document.getElementById('survey-draft-import-file').addEventListener('change', a
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, {type:'array'});
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
-    let done = 0, skipped = 0, notFound = 0;
+    let skipped = 0, notFound = 0;
+    const items = [];
     for(let idx=1; idx<rows.length; idx++){
       const row = rows[idx];
       if(!row || row[0]==null || String(row[0]).trim()===''){ continue; }
@@ -1377,16 +1391,24 @@ document.getElementById('survey-draft-import-file').addEventListener('change', a
         if(val!=null && String(val).trim()!=='') answers[q.id] = String(val).trim();
       });
       if(Object.keys(answers).length===0){ skipped++; continue; }
-      try{
-        await fetch(ACTION_LOG_ENDPOINT, {
-          method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify({kind:'saveSurveyDraft', project: currentProject, surveyId: survey.id, storeCode: compositeCode, answers}),
-        });
-        done++;
-      }catch(e){ skipped++; }
+      items.push({storeCode: compositeCode, answers});
     }
+
+    if(items.length===0){
+      showToast(`مفيش أي صف اتقدر يتحفظ (${notFound} مش لاقي محل، ${skipped} فاضي)`);
+      return;
+    }
+
+    showToast(`بيرفع بيانات ${items.length} محل دفعة واحدة، استني شوية...`);
+    const res = await fetch(ACTION_LOG_ENDPOINT, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({kind:'saveSurveyDraftsBulk', project: currentProject, surveyId: survey.id, items}),
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'فشل الحفظ على السيرفر');
+
     // المحلات تفضل زي حالتها الحالية (أحمر لحد ما الباحث يفتح الاستمارة بنفسه فعليًا) — من غير أي تغيير هنا
-    let msg = `اتحطت بيانات جاهزة كمسودة لـ ${done} محل${skipped>0 ? `، اتجاهل ${skipped} صف فاضي` : ''}`;
+    let msg = `✅ اتحطت بيانات جاهزة كمسودة لـ ${data.count} محل`;
     if(notFound>0) msg += `. تنبيه: ${notFound} صف بكود مركب مش موجود لأي محل حقيقي على الخريطة (لازم ترفع المحلات نفسها الأول)`;
     showToast(msg);
   }catch(err){
@@ -2199,7 +2221,7 @@ document.getElementById('login-btn').addEventListener('click', async ()=>{
   const showAdminEdit = state.isAdmin;
   const adminOnlyIds = [
     'btn-export','btn-zones','btn-import','btn-master-update','btn-manage-surveys','btn-create-project',
-    'btn-backup-export','btn-backup-import','btn-clear-stores',
+    'btn-backup-export','btn-backup-import','btn-clear-stores','btn-quick-draft-import',
     'btn-full-reset','btn-reset-sheets','btn-add-rep','btn-bulk-add-reps','btn-delete-rep','btn-reenable-rep',
     'dd-admin-divider',
     'dd-folder-zones-divider','dd-folder-zones-toggle','dd-folder-zones-items',
