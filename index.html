@@ -423,6 +423,7 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
 </div>
 
 <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none;">
+<input type="file" id="add-old-photo-input" accept="image/*" style="display:none;">
 <input type="file" id="master-file-input" accept=".xlsx,.xls" style="display:none;">
 <input type="file" id="bulk-reps-file-input" accept=".xlsx,.xls" style="display:none;">
 <input type="file" id="backup-import-input" accept=".json" style="display:none;">
@@ -595,6 +596,17 @@ header.topbar .brand-mark img.logo{height:22px;background:#fff;border-radius:7px
       </div>
     </div>
     <button class="map-pick-btn" id="btn-pick-loc">📍 دوس هنا وبعدين دوس على الخريطة لتحديد الموقع</button>
+
+    <div class="field" style="margin-top:14px;">
+      <label>صورة واجهة المحل <span style="color:var(--red);">(إجبارية)</span></label>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button type="button" class="btn-ghost" id="store-photo-camera-btn" style="flex:1;">📷 افتح الكاميرا</button>
+        <button type="button" class="btn-ghost" id="store-photo-gallery-btn" style="flex:1;">⬆️ رفع صورة</button>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="store-photo-camera-input" style="display:none;">
+      <input type="file" accept="image/*" id="store-photo-gallery-input" style="display:none;">
+      <div id="store-photo-preview" style="display:flex;gap:8px;"></div>
+    </div>
     <p class="hint" id="store-autosave-hint" style="margin-top:10px;"></p>
 
     <div class="modal-actions">
@@ -3025,12 +3037,20 @@ document.getElementById('toggle-live-track').addEventListener('change', (e)=>{
 
 function buildPopupHTML(store){
   let actions = '';
-  if(!store.assignment){
-    actions = `<button class="pop-btn primary" onclick="openAssignModal('${store.id}')">إضافة لخط السير</button>`;
-  }
   actions += `<button class="pop-btn dir" onclick="goToStore('${store.id}')">🧭 روح للمحل ده</button>`;
   actions += `<button class="pop-btn primary" onclick="openSurveysForStore('${store.id}')">📋 الاستبيانات</button>`;
   if(!state.readOnly) actions += `<button class="pop-btn warn" onclick="startRelocateStore('${store.id}')">🎯 ترحيل الموقع</button>`;
+
+  const oldPhotoHTML = store.oldPhotoUrl ? `
+    <div style="margin-top:10px;">
+      <p style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin:0 0 6px;">الصورة القديمة للمحل</p>
+      <a href="${escapeHtml(store.oldPhotoUrl)}" target="_blank">
+        <img src="${escapeHtml(store.oldPhotoUrl)}" style="width:100%;border-radius:10px;max-height:160px;object-fit:cover;display:block;">
+      </a>
+    </div>` : (!state.readOnly ? `
+    <div style="margin-top:10px;">
+      <button type="button" class="pop-btn primary" style="width:100%;" onclick="document.getElementById('add-old-photo-input').dataset.storeId='${store.id}'; document.getElementById('add-old-photo-input').click();">📷 ضيف صورة واجهة للمحل ده</button>
+    </div>` : '');
 
   const hasNote = !!(store.notes && store.notes.trim());
   const noteHTML = `
@@ -3055,6 +3075,7 @@ function buildPopupHTML(store){
       <p class="pop-title">${escapeHtml(store.name)}</p>
       <p class="pop-code">كود ${escapeHtml(String(store.code))}${state.repCode==='ALL' && store.repCode ? ' — '+escapeHtml(store.repCode) : ''}</p>
       <div class="pop-actions">${actions}</div>
+      ${oldPhotoHTML}
       ${nameEditHTML}
       ${noteHTML}
       <div class="pop-dir" id="dir-${store.id}"></div>
@@ -3551,6 +3572,27 @@ window.toggleNameBox = function(storeId, checked){
   }
 };
 
+document.getElementById('add-old-photo-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  const storeId = e.target.dataset.storeId;
+  e.target.value = '';
+  if(!file || !storeId) return;
+  const store = state.stores.find(s=>s.id===storeId);
+  if(!store) return;
+  showToast('بيرفع الصورة...');
+  const zoneName = store.zoneId ? (state.zones.find(z=>z.id===store.zoneId)||{}).name || '' : '';
+  const url = await uploadStorePhoto(file, 'صورة_واجهة_المحل_' + blockLabelFromZoneId(store.zoneId, store.code), store.code, zoneName);
+  if(url){
+    store.oldPhotoUrl = url;
+    saveStores();
+    map.closePopup();
+    renderMarkers();
+    showToast('✅ اتضافت الصورة — دوسي على المحل تاني تشوفيها');
+  } else {
+    showToast('حصلت مشكلة في رفع الصورة، جربي تاني');
+  }
+});
+
 window.confirmRenameStore = function(storeId){
   const store = state.stores.find(s=>s.id===storeId);
   if(!store) return;
@@ -3795,6 +3837,9 @@ async function openStoreModal({mode, lat, lng, replacingFor}){
     }
   }
 
+  currentNewStorePhoto = null;
+  document.getElementById('store-photo-preview').innerHTML = '';
+
   overlayStore.classList.add('show');
 
   const autoCode = await getNextAutoCode(state.repCode, lat, lng);
@@ -3811,6 +3856,40 @@ document.getElementById('btn-pick-loc').addEventListener('click', ()=>{
   btn.classList.add('armed');
   btn.textContent = '👆 دلوقتي دوس على أي نقطة في الخريطة...';
 });
+
+/* ---------- صورة واجهة المحل — إجبارية لأي محل جديد ---------- */
+let currentNewStorePhoto = null;
+function renderNewStorePhotoPreview(){
+  const box = document.getElementById('store-photo-preview');
+  if(!currentNewStorePhoto){ box.innerHTML = ''; return; }
+  const url = URL.createObjectURL(currentNewStorePhoto);
+  box.innerHTML = `<div style="position:relative;width:84px;height:84px;">
+    <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">
+    <button type="button" onclick="removeNewStorePhoto()" style="position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;">✕</button>
+  </div>`;
+}
+window.removeNewStorePhoto = function(){
+  currentNewStorePhoto = null;
+  renderNewStorePhotoPreview();
+};
+document.getElementById('store-photo-camera-btn').addEventListener('click', ()=>{
+  document.getElementById('store-photo-camera-input').click();
+});
+document.getElementById('store-photo-gallery-btn').addEventListener('click', ()=>{
+  document.getElementById('store-photo-gallery-input').click();
+});
+document.getElementById('store-photo-camera-input').addEventListener('change', (e)=>{
+  if(e.target.files[0]) currentNewStorePhoto = e.target.files[0];
+  e.target.value = '';
+  renderNewStorePhotoPreview();
+  trySaveNewStore();
+});
+document.getElementById('store-photo-gallery-input').addEventListener('change', (e)=>{
+  if(e.target.files[0]) currentNewStorePhoto = e.target.files[0];
+  e.target.value = '';
+  renderNewStorePhotoPreview();
+  trySaveNewStore();
+});
 let storeAutoSaveInFlight = false;
 let storeAlreadyCreatedThisModal = false;
 async function trySaveNewStore(){
@@ -3820,6 +3899,10 @@ async function trySaveNewStore(){
   const lat = parseFloat(document.getElementById('store-lat').value);
   const lng = parseFloat(document.getElementById('store-lng').value);
   if(!name || !code || isNaN(lat) || isNaN(lng)) return; // لسه مخلصش يكتب الاسم، أو الكود لسه بيتحدد
+  if(!currentNewStorePhoto){
+    document.getElementById('store-autosave-hint').textContent = '📷 لازم ترفع صورة واجهة المحل الأول (إجبارية) قبل ما يتحفظ.';
+    return;
+  }
 
   storeAutoSaveInFlight = true;
   const hint = document.getElementById('store-autosave-hint');
@@ -3887,6 +3970,12 @@ async function trySaveNewStore(){
       name, code, lat, lng, status:'valid',
       assignment, zoneId: matchedZoneId, origin:'new', repCode: ownerRep,
     };
+
+    hint.textContent = 'بيرفع صورة الواجهة...';
+    const matchedZoneName = matchedZoneId ? (state.zones.find(z=>z.id===matchedZoneId)||{}).name || '' : '';
+    const photoUrl = await uploadStorePhoto(currentNewStorePhoto, 'صورة_واجهة_المحل_' + blockLabelFromZoneId(matchedZoneId, code), code, matchedZoneName);
+    if(photoUrl) newStore.frontPhotoUrl = photoUrl;
+
     state.stores.push(newStore);
     storeAlreadyCreatedThisModal = true;
     state.surveyFillStoreId = newStore.id; // عشان زرار "الاستبيانات" يبقى جاهز يفتحله على طول لو حب يكمل من هنا
@@ -3937,7 +4026,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0, zoneCreated = 0;
   rows.forEach((row, idx)=>{
     if(idx===0) return; // skip header
-    const [code, name, zoneNameCol, areaNameCol, repCodeCol, lat, lng, codeStartFromCol] = row;
+    const [code, name, zoneNameCol, areaNameCol, repCodeCol, lat, lng, codeStartFromCol, oldPhotoUrlCol] = row;
     if(!name || lat==null || lng==null) return;
     const latN = parseFloat(lat), lngN = parseFloat(lng);
     if(isNaN(latN) || isNaN(lngN)) return;
@@ -3994,6 +4083,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
       lat:latN, lng:lngN, status:'valid', assignment:null, zoneId: zoneId, origin:'new',
     };
     if(rowRepCode) newStore.repCode = rowRepCode;
+    if(oldPhotoUrlCol!=null && String(oldPhotoUrlCol).trim()!=='') newStore.oldPhotoUrl = String(oldPhotoUrlCol).trim();
     state.stores.push(newStore);
     added++;
   });
