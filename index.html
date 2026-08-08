@@ -3798,9 +3798,14 @@ async function trySaveNewStore(){
   hint.textContent = 'بيتحفظ...';
 
   try{
-    const codeExists = state.stores.some(s => String(s.code).trim().toLowerCase() === code.toLowerCase());
+    const likelyZoneId = findZoneIdByPolygon(lat, lng);
+    const likelyZoneName = likelyZoneId ? (state.zones.find(z=>z.id===likelyZoneId)||{}).name : null;
+    const codeExists = state.stores.some(s =>
+      String(s.code).trim().toLowerCase() === code.toLowerCase() &&
+      (zoneNameOf(s) || 'بدون_مربع') === (likelyZoneName || 'بدون_مربع')
+    );
     if(codeExists){
-      hint.textContent = '⚠️ الكود ده مستخدم بالفعل لمحل تاني — قفل وافتح تاني عشان يتحدد كود جديد.';
+      hint.textContent = '⚠️ الكود ده مستخدم بالفعل لمحل تاني في نفس المربع — قفل وافتح تاني عشان يتحدد كود جديد.';
       return;
     }
 
@@ -3897,7 +3902,9 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
     return;
   }
 
-  const existingCodes = new Set(state.stores.map(s => String(s.code).trim().toLowerCase()));
+  // فحص التكرار بقى بيتم على مستوى (المربع + الكود) مع بعض، مش الكود لوحده — عشان نفس الكود
+  // البسيط (زي "1") يقدر يتكرر بشكل شرعي في مربعات مختلفة من غير ما يتحسب تصادم
+  const existingCompositeKeys = new Set(state.stores.map(s => `${zoneNameOf(s)||'بدون_مربع'}::${String(s.code).trim().toLowerCase()}`));
   const usedNumericCodes = new Set(state.stores.map(s=>parseInt(s.code,10)).filter(c=>!isNaN(c)));
   let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0, zoneCreated = 0;
   rows.forEach((row, idx)=>{
@@ -3947,8 +3954,9 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
       codeStr = autoCode!=null ? String(autoCode) : String(idx);
       autoCoded++;
     }
-    if(existingCodes.has(codeStr.toLowerCase())){ skippedDup++; return; }
-    existingCodes.add(codeStr.toLowerCase());
+    const compositeKey = `${matchedZoneObj ? matchedZoneObj.name : 'بدون_مربع'}::${codeStr.toLowerCase()}`;
+    if(existingCompositeKeys.has(compositeKey)){ skippedDup++; return; }
+    existingCompositeKeys.add(compositeKey);
     const numericCode = parseInt(codeStr, 10);
     if(!isNaN(numericCode)) usedNumericCodes.add(numericCode);
     if(isOutsideEgypt(latN,lngN)) outOfBounds++;
@@ -3968,7 +3976,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   if(zoneCreated>0) msg += `، اتعمل ${zoneCreated} مربع جديد من أسماء مكتوبة في الملف`;
   if(matchedToBlock>0) msg += `، ${matchedToBlock} منهم اترَبط بمربع`;
   if(autoCoded>0) msg += `، ${autoCoded} كود اتحسب تلقائي`;
-  if(skippedDup>0) msg += `، واتجاهل ${skippedDup} لأن الكود متكرر`;
+  if(skippedDup>0) msg += `، واتجاهل ${skippedDup} لأن نفس الكود مكرر جوه نفس المربع`;
   if(outOfBounds>0) msg += `. تنبيه: ${outOfBounds} منهم بإحداثيات غريبة برا حدود مصر، راجعهم`;
   showToast(msg);
   e.target.value = '';
