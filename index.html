@@ -839,35 +839,26 @@ function findNearestScheduledDay(lat, lng, storesOverride){
 const ALL_ZONES_MAX_DISTANCE_M = 6000; // لو أبعد من كده عن أي باحث خالص، يبقى برة كل مناطق الإضافة
 
 function territoryConflictMessage(conflict){
-  if(conflict.type === 'outside_all'){
-    return '⛔ انت خارج جميع مناطق الإضافة، برجاء إجراء الإضافة داخل النطاق الخاص بك';
+  if(conflict.type === 'no_zone_selected'){
+    return '⛔ لازم تختار مربع من فلتر "🗂️ عرض مربعات" فوق الأول قبل ما تضيف محل';
   }
-  return `⛔ مينفعش تضيف هنا — المكان ده جوه نطاق ${conflict.conflictRep} مش نطاقك انت`;
+  return `⛔ انت خارج مربع ${conflict.zoneNames} — المكان اللي انت فيه دلوقتي مش جوه حدود المربع/المربعات اللي مختارها من الفلتر`;
 }
 
+/* بدل الفحص القديم اللي كان بيقارن أقرب مسافة (تقريبي)، بقينا بنستخدم حدود المربعات الحقيقية:
+   الباحث لازم يكون مختار مربع (أو أكتر) من فلتر "عرض مربعات" فوق، والموقع الحالي لازم يكون
+   فعليًا جوه حدود واحد منهم على الأقل، وإلا مايقدرش يضيف محل. */
 async function checkTerritoryConflict(repCode, lat, lng){
-  // كل المحلات (بتاعت كل الباحثين) بقت متحمّلة فعلاً في state.stores من الحوض المشترك،
-  // فمحتاجينش أي طلبات شبكة تانية هنا — الحساب كله محلي وفوري.
-  const ownStores = state.stores.filter(s=>s.status==='valid' && s.repCode===repCode);
-  let ownMinDist = Infinity;
-  ownStores.forEach(s=>{ const d=haversineMeters(lat,lng,s.lat,s.lng); if(d<ownMinDist) ownMinDist=d; });
-
-  let nearestOtherRep = null, otherMinDist = Infinity;
-  state.stores.forEach(s=>{
-    if(s.status==='valid' && s.repCode && s.repCode!==repCode){
-      const d = haversineMeters(lat,lng,s.lat,s.lng);
-      if(d<otherMinDist){ otherMinDist = d; nearestOtherRep = s.repCode; }
-    }
-  });
-
-  const overallMinDist = Math.min(ownMinDist, otherMinDist);
-  if(overallMinDist > ALL_ZONES_MAX_DISTANCE_M){
-    return { type:'outside_all' };
+  if(state.selectedZoneFilter.size === 0){
+    return { type:'no_zone_selected' };
   }
-  if(ownStores.length>0 && nearestOtherRep && otherMinDist < ownMinDist){
-    return { type:'other_rep', conflictRep: nearestOtherRep };
+  const selectedZones = state.zones.filter(z=>state.selectedZoneFilter.has(z.id));
+  for(const zone of selectedZones){
+    const rings = zoneRings(zone);
+    if(rings && pointInZoneRings(lat, lng, rings)) return null; // جوه واحد من المربعات المختارة، تمام
   }
-  return null;
+  const zoneNames = selectedZones.map(z=>z.name).join('، ');
+  return { type:'outside_selected_zone', zoneNames };
 }
 
 
@@ -3147,7 +3138,7 @@ document.getElementById('btn-add-mode').addEventListener('click', async ()=>{
     btn.innerHTML = originalHTML;
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
-      logAlert('محاولة إضافة برا المربع', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict));
+      logAlert('محاولة إضافة برا المربع', territoryConflictMessage(conflict));
       return;
     }
     openStoreModal({mode:'add', lat: myLocation.lat, lng: myLocation.lng});
@@ -3465,7 +3456,7 @@ window.openReplaceFlow = async function(storeId){
     const conflict = await checkTerritoryConflict(state.repCode, myLocation.lat, myLocation.lng);
     if(conflict){
       showToast(territoryConflictMessage(conflict), true);
-      logAlert('محاولة إضافة برا المربع', conflict.type==='outside_all' ? 'برا كل مناطق الإضافة الخاصة بيه' : territoryConflictMessage(conflict), store ? store.code : '', store ? store.name : '');
+      logAlert('محاولة إضافة برا المربع', territoryConflictMessage(conflict), store ? store.code : '', store ? store.name : '');
       return;
     }
     openStoreModal({mode:'replace', lat: myLocation.lat, lng: myLocation.lng, replacingFor:storeId});
