@@ -1333,7 +1333,7 @@ document.getElementById('btn-new-survey').addEventListener('click', ()=>{
 window.downloadSurveyDraftTemplate = function(surveyId){
   const survey = state.surveys.find(s=>s.id===surveyId);
   if(!survey) return;
-  const headers = ['كود المحل', ...survey.questions.map(q=>q.text)];
+  const headers = ['الكود المركب (المربع_الكود)', ...survey.questions.map(q=>q.text)];
   const ws = XLSX.utils.aoa_to_sheet([headers]);
   ws['!cols'] = headers.map(()=>({wch:24}));
   const wb = XLSX.utils.book_new();
@@ -1349,15 +1349,22 @@ document.getElementById('survey-draft-import-file').addEventListener('change', a
   const survey = state.surveys.find(s=>s.id===surveyId);
   if(!survey) return;
 
+  // بنبني خريطة الكود المركب -> المحل الحقيقي، عشان نستخدمها في المطابقة (بتحل مشكلة تكرار
+  // نفس الكود البسيط في مربعات مختلفة، لأن الكود المركب فريد على مستوى الابلكيشن كله)
+  const byComposite = new Map();
+  state.stores.forEach(s=> byComposite.set(compositeCodeFor(s), s));
+
   try{
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, {type:'array'});
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
-    let done = 0, skipped = 0;
+    let done = 0, skipped = 0, notFound = 0;
     for(let idx=1; idx<rows.length; idx++){
       const row = rows[idx];
       if(!row || row[0]==null || String(row[0]).trim()===''){ continue; }
-      const storeCode = String(row[0]).trim();
+      const compositeCode = String(row[0]).trim();
+      const matchedStore = byComposite.get(compositeCode);
+      if(!matchedStore){ notFound++; continue; } // مفيش محل بالكود المركب ده — على الأغلب لسه ما اترفعش
       const answers = {};
       survey.questions.forEach((q, qi)=>{
         const val = row[qi+1];
@@ -1367,13 +1374,15 @@ document.getElementById('survey-draft-import-file').addEventListener('change', a
       try{
         await fetch(ACTION_LOG_ENDPOINT, {
           method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify({kind:'saveSurveyDraft', project: currentProject, surveyId: survey.id, storeCode, answers}),
+          body: JSON.stringify({kind:'saveSurveyDraft', project: currentProject, surveyId: survey.id, storeCode: compositeCode, answers}),
         });
         done++;
       }catch(e){ skipped++; }
     }
     // المحلات تفضل زي حالتها الحالية (أحمر لحد ما الباحث يفتح الاستمارة بنفسه فعليًا) — من غير أي تغيير هنا
-    showToast(`اتحطت بيانات جاهزة كمسودة لـ ${done} محل${skipped>0 ? `، اتجاهل ${skipped} صف` : ''}. هتظهر للباحث أول ما يفتح الاستمارة.`);
+    let msg = `اتحطت بيانات جاهزة كمسودة لـ ${done} محل${skipped>0 ? `، اتجاهل ${skipped} صف فاضي` : ''}`;
+    if(notFound>0) msg += `. تنبيه: ${notFound} صف بكود مركب مش موجود لأي محل حقيقي على الخريطة (لازم ترفع المحلات نفسها الأول)`;
+    showToast(msg);
   }catch(err){
     showToast('حصلت مشكلة في قراءة الملف — راجع الصيغة زي النموذج');
   }
@@ -1754,7 +1763,7 @@ window.openSurveyFillForm = async function(surveyId){
 
     // مسودة الإجابات (لو الباحث كان بدأ يجاوب قبل كده وقفل من غير ما يبعت) — أحدث من آخر إرسال رسمي، فبتاخد أولوية
     try{
-      const draftRes = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyDraft&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(store.code)}`);
+      const draftRes = await fetch(`${ACTION_LOG_ENDPOINT}?action=getSurveyDraft&project=${encodeURIComponent(currentProject)}&surveyId=${encodeURIComponent(survey.id)}&storeCode=${encodeURIComponent(compositeCodeFor(store))}`);
       const draftData = await draftRes.json();
       if(draftData.ok && draftData.draft && draftData.draft.answers){
         currentFillAnswers = Object.assign({}, currentFillAnswers, draftData.draft.answers);
@@ -1855,7 +1864,7 @@ function queueDraftSave(){
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         kind:'saveSurveyDraft', project: currentProject,
-        surveyId: currentFillSurvey.id, storeCode: store.code, answers: currentFillAnswers,
+        surveyId: currentFillSurvey.id, storeCode: compositeCodeFor(store), answers: currentFillAnswers,
       }),
     }).catch(()=>{}); // فشل حفظ المسودة مش لازم يوقف الباحث، هيحاول تاني لما يجاوب على سؤال تاني
   }, 1500);
@@ -1973,7 +1982,7 @@ document.getElementById('survey-fill-submit').addEventListener('click', async ()
       // الاستمارة اتبعتت كاملة (أو محفوظة في طابور هترفع أكيد) — المسودة المؤقتة مبقاش لها داعي
       fetch(ACTION_LOG_ENDPOINT, {
         method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({kind:'clearSurveyDraft', project: currentProject, surveyId: survey.id, storeCode: store.code}),
+        body: JSON.stringify({kind:'clearSurveyDraft', project: currentProject, surveyId: survey.id, storeCode: compositeCodeFor(store)}),
       }).catch(()=>{});
     }
     document.getElementById('overlay-survey-fill').classList.remove('show');
@@ -2786,6 +2795,12 @@ document.addEventListener('click', (e)=>{
 function zoneNameOf(store){
   const z = state.zones.find(z=>z.id===store.zoneId && (!z.repCode || z.repCode===store.repCode));
   return z ? z.name : null;
+}
+/* الكود المركب = اسم المربع + كود المحل البسيط، عشان يبقى فريد على مستوى الابلكيشن كله
+   حتى لو نفس الكود البسيط اتكرر في مربعات مختلفة (زي 1، 2، 3... بيبدأ من جديد كل مربع). */
+function compositeCodeFor(store){
+  const zoneName = zoneNameOf(store);
+  return (zoneName || 'بدون_مربع') + '_' + store.code;
 }
 
 /* ---------- ترحيل موقع محل: دائرة شفافة قابلة للسحب على الخريطة + تأكيد قبل ما الإحداثيات تتغير فعليًا ----------
@@ -4387,13 +4402,13 @@ document.getElementById('master-file-input').addEventListener('change', async (e
 
 /* ===================== Export Excel ===================== */
 function getExportColumns(){
-  const cols = ['Adhoc Serial','Outlet Name Conc','New Repzo User'];
+  const cols = ['Adhoc Serial','الكود المركب (المربع_الكود)','Outlet Name Conc','New Repzo User'];
   for(let w=1; w<=4; w++) DAYS.forEach(d=> cols.push(`${d.key} ${w}`));
   cols.push('Freq','Weekly Visit','حالة المحل','جديد/قديم','النوع','السلسلة','Lat','Lng','ملاحظات','نقل يوم فردي','تبديل يومين','تعديل اسم المحل');
   return cols;
 }
 function buildStoreExportRow(store, repCode){
-  const row = [store.code, `${store.name} - ${store.code}`, repCode];
+  const row = [store.code, compositeCodeFor(store), `${store.name} - ${store.code}`, repCode];
   const a = store.assignment;
   for(let w=1; w<=4; w++){
     DAYS.forEach((d,dayIdx)=>{
