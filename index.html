@@ -1319,12 +1319,17 @@ function renderSurveysAdminList(){
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
         <button class="btn-ghost" style="flex:1;padding:6px;font-size:12px;" onclick="downloadSurveyDraftTemplate('${sv.id}')">⬇️ نموذج خاص بالاستبيان ده</button>
-        <button class="btn-ghost" style="flex:1;padding:6px;font-size:12px;" onclick="document.getElementById('survey-draft-import-file').dataset.surveyId='${sv.id}'; document.getElementById('survey-draft-import-file').click();">📥 استيراد بيانات جاهزة</button>
+        <button class="btn-ghost" style="flex:1;padding:6px;font-size:12px;" onclick="window.startDraftImport('${sv.id}')">📥 استيراد بيانات جاهزة</button>
       </div>
     </div>
   `;
   }).join('');
 }
+window.startDraftImport = function(surveyId){
+  showToast('بيفتحلك نافذة اختيار ملف...');
+  document.getElementById('survey-draft-import-file').dataset.surveyId = surveyId;
+  document.getElementById('survey-draft-import-file').click();
+};
 document.getElementById('btn-new-survey').addEventListener('click', ()=>{
   openSurveyBuilder(null);
 });
@@ -1344,10 +1349,11 @@ window.downloadSurveyDraftTemplate = function(surveyId){
 document.getElementById('survey-draft-import-file').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   const surveyId = e.target.dataset.surveyId;
-  if(!file || !surveyId) return;
+  if(!file){ showToast('⚠️ معرفتش ألاقي الملف اللي اخترتيه، جربي تاني'); return; }
+  if(!surveyId){ showToast('⚠️ مشكلة تقنية: مش عارف الاستبيان المقصود — اقفلي الصفحة دي وافتحيها تاني وجربي تاني'); return; }
   e.target.value = '';
   const survey = state.surveys.find(s=>s.id===surveyId);
-  if(!survey) return;
+  if(!survey){ showToast('⚠️ الاستبيان ده مش لاقياه — جربي تعملي Refresh للصفحة الأول وبعدين جربي تاني'); return; }
 
   // بنبني خريطة الكود المركب -> المحل الحقيقي، عشان نستخدمها في المطابقة (بتحل مشكلة تكرار
   // نفس الكود البسيط في مربعات مختلفة، لأن الكود المركب فريد على مستوى الابلكيشن كله)
