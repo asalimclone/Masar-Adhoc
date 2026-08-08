@@ -3668,17 +3668,27 @@ async function allocateNewOverflowBlock(repCode, overflowMap){
   return newRange;
 }
 /* ---------- تكويد تلقائي على مستوى المربع (مربع) ----------
-   لو النقطة الجديدة وقعت جوه مربع فيه محلات قبل كده بسريال صغير (عشرات/مئات)،
-   التكويد الجديد بيكمل من بعد أعلى سريال صغير في نفس المربع. لو المربع فاضي
-   (مفيش محلات قريبة تنسبه لمربع معين) يبدأ من 1. */
+   لو المربع له "بداية تكويد" محددة (zone.codeStartFrom)، بندور من الرقم ده لفوق على أول رقم
+   فاضي (بنتخطى أي رقم مستخدم فعلاً لمحل حقيقي موجود) وندّيه. لو المربع مالوش بداية محددة،
+   بنفضل بالسلوك القديم: نكمل من بعد أعلى سريال صغير موجود، أو نبدأ من 1 لو المربع فاضي. */
 const BLOCK_LOCAL_SERIAL_MAX = 999; // أي كود أصغر من أو يساوي كده بيتعامل كـ"سريال محلي" للمربع
 
 function getNextBlockLocalCode(zoneId, usedCodes){
   if(!zoneId) return null;
+  const zone = state.zones.find(z=>z.id===zoneId);
   const blockStores = state.stores.filter(s=>s.zoneId===zoneId);
   const localCodes = blockStores
     .map(s=>parseInt(s.code,10))
     .filter(c=>!isNaN(c) && c>0 && c<=BLOCK_LOCAL_SERIAL_MAX);
+
+  if(zone && zone.codeStartFrom!=null && !isNaN(parseInt(zone.codeStartFrom,10))){
+    // فيه بداية تكويد محددة للمربع ده — ندور من عندها لفوق على أول رقم فاضي، من غير ما نكود على محل موجود بالفعل
+    const usedInBlock = new Set(localCodes);
+    let candidate = parseInt(zone.codeStartFrom, 10);
+    while(usedInBlock.has(candidate) || usedCodes.has(candidate)) candidate++;
+    return candidate;
+  }
+
   let next = localCodes.length ? Math.max(...localCodes)+1 : 1;
   while(usedCodes.has(next)) next++; // تفادي أي تصادم نادر مع كود مستخدم فعلاً
   return next;
@@ -3863,7 +3873,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
 
-  // الأعمدة المتوقعة بالترتيب ده: كود المحل | اسم المحل | اسم المربع (اختياري) | اسم المنطقة (اختياري) | كود الباحث (اختياري) | Lat | Lng
+  // الأعمدة المتوقعة بالترتيب ده: كود المحل | اسم المحل | اسم المربع (اختياري) | اسم المنطقة (اختياري) | كود الباحث (اختياري) | Lat | Lng | بداية التكويد (اختياري)
   // لو عمود "كود الباحث" فيه قيم ومحتاجين ملف واحد لكل الباحثين مع بعض، لازم تكون فاتح شاشة "الكل" كأدمن.
   const multiRepFile = rows.slice(1).some(r => r && r[4] != null && String(r[4]).trim()!=='');
   if(multiRepFile && state.repCode!=='ALL'){
@@ -3877,7 +3887,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
   let added = 0, skippedDup = 0, outOfBounds = 0, autoCoded = 0, matchedToBlock = 0, zoneCreated = 0;
   rows.forEach((row, idx)=>{
     if(idx===0) return; // skip header
-    const [code, name, zoneNameCol, areaNameCol, repCodeCol, lat, lng] = row;
+    const [code, name, zoneNameCol, areaNameCol, repCodeCol, lat, lng, codeStartFromCol] = row;
     if(!name || lat==null || lng==null) return;
     const latN = parseFloat(lat), lngN = parseFloat(lng);
     if(isNaN(latN) || isNaN(lngN)) return;
@@ -3886,6 +3896,7 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
 
     // 1) لو اسم المربع مكتوب في الملف، نحاول الأول نلاقي مربع موجود بنفس الاسم (لنفس الباحث) — override يدوي
     let zoneId = null;
+    let matchedZoneObj = null;
     const zoneNameStr = (zoneNameCol!=null ? String(zoneNameCol).trim() : '');
     if(zoneNameStr){
       let zone = state.zones.find(z => z.name===zoneNameStr && (!z.repCode || z.repCode===rowRepCode));
@@ -3898,11 +3909,19 @@ document.getElementById('file-input').addEventListener('change', async (e)=>{
         zoneCreated++;
       }
       zoneId = zone.id;
+      matchedZoneObj = zone;
     } else {
       // 2) مفيش اسم مربع في الملف — بنحدد المربع تلقائي لو المحل وقع جوه حدود GIS مستوردة قبل كده
       zoneId = findZoneIdByPolygon(latN, lngN);
+      matchedZoneObj = zoneId ? state.zones.find(z=>z.id===zoneId) : null;
     }
     if(zoneId) matchedToBlock++;
+
+    // "بداية التكويد" — لو مكتوبة، بتتحط على المربع نفسه (بتنطبق على كل محلاته من دلوقتي فصاعدًا)
+    if(matchedZoneObj && codeStartFromCol!=null && String(codeStartFromCol).trim()!==''){
+      const startNum = parseInt(String(codeStartFromCol).trim(), 10);
+      if(!isNaN(startNum)) matchedZoneObj.codeStartFrom = startNum;
+    }
 
     let codeStr;
     if(code!=null && String(code).trim()!==''){
